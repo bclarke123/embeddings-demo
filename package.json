@@ -3,15 +3,33 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "build:client": "bun build ./public/app.tsx --outdir ./public --outfile app.js",
+    "dev": "bun build:client && bun --hot index.ts",
+    "migrate": "bun migrate.ts"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "^1.2.19"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
     "@chroma-core/default-embed": "^0.1.8",
+    "@google/generative-ai": "^0.24.1",
+    "@types/pg": "^8.15.4",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "chromadb": "^3.0.10",
-    "dotenv": "^17.2.1"
+    "dotenv": "^17.2.1",
+    "drizzle-kit": "^0.31.4",
+    "drizzle-orm": "^0.44.3",
+    "hono": "^4.8.7",
+    "pg": "^8.16.3",
+    "pgvector": "^0.2.1",
+    "postgres": "^3.4.7",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "redis": "^5.6.1"
   }
 }

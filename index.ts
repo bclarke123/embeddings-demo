@@ -1,21 +1,28 @@
-import 'dotenv/config';
-import * as fs from 'fs';
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
+import { serveStatic } from "hono/bun";
+import { scriptRoutes } from "./src/api/scripts";
+import { searchRoutes } from "./src/api/search";
 
-async function main() {
-    const input = await new Promise((resolve, reject) => {
-        fs.readFile("text/batman.txt", (err, t) => {
-            if (err) {
-                reject(err);
-                return;
-            }
+const app = new Hono();
 
-            const text = t.toString("utf-8");
-            const paragraphs = text.split(/\n\n/g);
-            resolve(paragraphs);
-        });
-    });
+app.use("*", logger());
+app.use("/api/*", cors());
 
+app.route("/api/scripts", scriptRoutes);
+app.route("/api/search", searchRoutes);
 
-}
+app.get("/", async (c) => {
+  const html = await Bun.file("./public/index.html").text();
+  return c.html(html);
+});
 
-main().catch(console.error);
+app.use("/*", serveStatic({ root: "./public" }));
+
+const server = Bun.serve({
+  fetch: app.fetch,
+  port: process.env.PORT || 3000,
+});
+
+console.log(`Server running at http://localhost:${server.port}`);
