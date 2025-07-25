@@ -4,16 +4,19 @@ import { scripts, scriptChunks } from "../db/schema";
 import { generateEmbedding } from "../lib/gemini";
 import { chunkText } from "../lib/text-chunker";
 import { eq } from "drizzle-orm";
+import { validateBody, validateParams } from "../middleware/validation";
+import { uploadRateLimit } from "../middleware/rate-limit";
 
 export const scriptRoutes = new Hono();
 
-scriptRoutes.post("/", async (c) => {
-  try {
-    const { title, content } = await c.req.json<{ title: string; content: string }>();
-    
-    if (!title || !content) {
-      return c.json({ error: "Title and content are required" }, 400);
-    }
+scriptRoutes.post("/", 
+  // uploadRateLimit, // Temporarily disabled for testing
+  validateBody({
+    title: { required: true, minLength: 1, maxLength: 200 },
+    content: { required: true, minLength: 10, maxLength: 1000000 }
+  }),
+  async (c) => {
+    const { title, content } = c.get('validatedBody');
 
     // Create script record
     console.log("Creating script record...");
@@ -67,33 +70,17 @@ scriptRoutes.post("/", async (c) => {
       totalChunks: chunks.length,
       errors: errors.length > 0 ? errors : undefined
     });
-  } catch (error) {
-    console.error("Error processing script:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return c.json({ 
-      error: `Failed to process script: ${errorMessage}`,
-      success: false 
-    }, 500);
-  }
-});
+  });
 
 scriptRoutes.get("/", async (c) => {
-  try {
-    const allScripts = await db.select().from(scripts);
-    return c.json(allScripts);
-  } catch (error) {
-    console.error("Error fetching scripts:", error);
-    return c.json({ error: "Failed to fetch scripts" }, 500);
-  }
+  const allScripts = await db.select().from(scripts);
+  return c.json(allScripts);
 });
 
-scriptRoutes.delete("/:id", async (c) => {
-  try {
-    const id = parseInt(c.req.param("id"));
+scriptRoutes.delete("/:id", 
+  validateParams("id", true),
+  async (c) => {
+    const id = c.get('validatedId');
     await db.delete(scripts).where(eq(scripts.id, id));
     return c.json({ success: true });
-  } catch (error) {
-    console.error("Error deleting script:", error);
-    return c.json({ error: "Failed to delete script" }, 500);
-  }
-});
+  });

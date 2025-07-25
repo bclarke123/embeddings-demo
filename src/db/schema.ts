@@ -17,8 +17,12 @@ export const scriptChunks = pgTable("script_chunks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
   return {
-    embeddingIdx: index("embedding_idx"),
+    // Vector similarity index using ivfflat for cosine distance
+    embeddingIdx: index("embedding_cosine_idx").using("ivfflat", table.embedding.op("vector_cosine_ops")),
+    // Compound index for script filtering + performance
     scriptIdx: index("script_idx").on(table.scriptId),
+    // Index for chunk ordering within scripts
+    chunkOrderIdx: index("chunk_order_idx").on(table.scriptId, table.chunkIndex),
   };
 });
 
@@ -27,4 +31,9 @@ export const searches = pgTable("searches", {
   query: text("query").notNull(),
   queryEmbedding: vector("query_embedding", { dimensions: 768 }),
   searchedAt: timestamp("searched_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Index for search history queries
+    searchedAtIdx: index("searched_at_idx").on(table.searchedAt),
+  };
 });

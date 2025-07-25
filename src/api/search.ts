@@ -5,6 +5,8 @@ import { generateEmbedding } from "../lib/gemini";
 import { redis } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import crypto from "crypto";
+import { validateBody } from "../middleware/validation";
+import { searchRateLimit } from "../middleware/rate-limit";
 
 export const searchRoutes = new Hono();
 
@@ -12,13 +14,14 @@ function getQueryHash(query: string): string {
   return crypto.createHash("md5").update(query).digest("hex");
 }
 
-searchRoutes.post("/", async (c) => {
-  try {
-    const { query, limit = 10 } = await c.req.json<{ query: string; limit?: number }>();
-    
-    if (!query) {
-      return c.json({ error: "Query is required" }, 400);
-    }
+searchRoutes.post("/",
+  // searchRateLimit, // Temporarily disabled for testing
+  validateBody({
+    query: { required: true, minLength: 1, maxLength: 500 },
+    limit: { min: 1, max: 50, default: 10 }
+  }),
+  async (c) => {
+    const { query, limit } = c.get('validatedBody');
 
     const queryHash = getQueryHash(query);
     const cacheKey = `search:${queryHash}`;
@@ -66,8 +69,4 @@ searchRoutes.post("/", async (c) => {
     await redis.setEx(cacheKey, 900, JSON.stringify(response));
     
     return c.json(response);
-  } catch (error) {
-    console.error("Error performing search:", error);
-    return c.json({ error: "Failed to perform search" }, 500);
-  }
-});
+  });

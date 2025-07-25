@@ -16539,7 +16539,7 @@ function Upload({ documents, onUpload, onDocumentsChange }) {
       uploadProgress && /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
         style: { marginTop: spacing.lg },
         children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Alert, {
-          variant: uploadStatus,
+          variant: uploadStatus === "idle" ? "info" : uploadStatus,
           children: uploadProgress
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this),
@@ -16721,6 +16721,9 @@ function App() {
   const loadDocuments = async () => {
     try {
       const response = await fetch("/api/scripts");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
       setDocuments(data);
     } catch (error) {
@@ -16736,6 +16739,9 @@ function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query })
     });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data = await response.json();
     return data.results || [];
   };
