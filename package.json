@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build:client": "bun build ./public/app.tsx --outdir ./public --outfile app.js",
+    "build:client": "bun build ./public/index.tsx --outdir ./public --outfile index.js",
     "dev": "bun build:client && bun --hot index.ts",
     "migrate": "bun migrate.ts"
   },

@@ -16,6 +16,269 @@ var __toESM = (mod, isNodeMode, target) => {
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 
+// node_modules/scheduler/cjs/scheduler.development.js
+var require_scheduler_development = __commonJS((exports) => {
+  (function() {
+    function performWorkUntilDeadline() {
+      needsPaint = false;
+      if (isMessageLoopRunning) {
+        var currentTime = exports.unstable_now();
+        startTime = currentTime;
+        var hasMoreWork = true;
+        try {
+          a: {
+            isHostCallbackScheduled = false;
+            isHostTimeoutScheduled && (isHostTimeoutScheduled = false, localClearTimeout(taskTimeoutID), taskTimeoutID = -1);
+            isPerformingWork = true;
+            var previousPriorityLevel = currentPriorityLevel;
+            try {
+              b: {
+                advanceTimers(currentTime);
+                for (currentTask = peek(taskQueue);currentTask !== null && !(currentTask.expirationTime > currentTime && shouldYieldToHost()); ) {
+                  var callback = currentTask.callback;
+                  if (typeof callback === "function") {
+                    currentTask.callback = null;
+                    currentPriorityLevel = currentTask.priorityLevel;
+                    var continuationCallback = callback(currentTask.expirationTime <= currentTime);
+                    currentTime = exports.unstable_now();
+                    if (typeof continuationCallback === "function") {
+                      currentTask.callback = continuationCallback;
+                      advanceTimers(currentTime);
+                      hasMoreWork = true;
+                      break b;
+                    }
+                    currentTask === peek(taskQueue) && pop(taskQueue);
+                    advanceTimers(currentTime);
+                  } else
+                    pop(taskQueue);
+                  currentTask = peek(taskQueue);
+                }
+                if (currentTask !== null)
+                  hasMoreWork = true;
+                else {
+                  var firstTimer = peek(timerQueue);
+                  firstTimer !== null && requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
+                  hasMoreWork = false;
+                }
+              }
+              break a;
+            } finally {
+              currentTask = null, currentPriorityLevel = previousPriorityLevel, isPerformingWork = false;
+            }
+            hasMoreWork = undefined;
+          }
+        } finally {
+          hasMoreWork ? schedulePerformWorkUntilDeadline() : isMessageLoopRunning = false;
+        }
+      }
+    }
+    function push(heap, node) {
+      var index = heap.length;
+      heap.push(node);
+      a:
+        for (;0 < index; ) {
+          var parentIndex = index - 1 >>> 1, parent = heap[parentIndex];
+          if (0 < compare(parent, node))
+            heap[parentIndex] = node, heap[index] = parent, index = parentIndex;
+          else
+            break a;
+        }
+    }
+    function peek(heap) {
+      return heap.length === 0 ? null : heap[0];
+    }
+    function pop(heap) {
+      if (heap.length === 0)
+        return null;
+      var first = heap[0], last = heap.pop();
+      if (last !== first) {
+        heap[0] = last;
+        a:
+          for (var index = 0, length = heap.length, halfLength = length >>> 1;index < halfLength; ) {
+            var leftIndex = 2 * (index + 1) - 1, left = heap[leftIndex], rightIndex = leftIndex + 1, right = heap[rightIndex];
+            if (0 > compare(left, last))
+              rightIndex < length && 0 > compare(right, left) ? (heap[index] = right, heap[rightIndex] = last, index = rightIndex) : (heap[index] = left, heap[leftIndex] = last, index = leftIndex);
+            else if (rightIndex < length && 0 > compare(right, last))
+              heap[index] = right, heap[rightIndex] = last, index = rightIndex;
+            else
+              break a;
+          }
+      }
+      return first;
+    }
+    function compare(a, b) {
+      var diff = a.sortIndex - b.sortIndex;
+      return diff !== 0 ? diff : a.id - b.id;
+    }
+    function advanceTimers(currentTime) {
+      for (var timer = peek(timerQueue);timer !== null; ) {
+        if (timer.callback === null)
+          pop(timerQueue);
+        else if (timer.startTime <= currentTime)
+          pop(timerQueue), timer.sortIndex = timer.expirationTime, push(taskQueue, timer);
+        else
+          break;
+        timer = peek(timerQueue);
+      }
+    }
+    function handleTimeout(currentTime) {
+      isHostTimeoutScheduled = false;
+      advanceTimers(currentTime);
+      if (!isHostCallbackScheduled)
+        if (peek(taskQueue) !== null)
+          isHostCallbackScheduled = true, isMessageLoopRunning || (isMessageLoopRunning = true, schedulePerformWorkUntilDeadline());
+        else {
+          var firstTimer = peek(timerQueue);
+          firstTimer !== null && requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
+        }
+    }
+    function shouldYieldToHost() {
+      return needsPaint ? true : exports.unstable_now() - startTime < frameInterval ? false : true;
+    }
+    function requestHostTimeout(callback, ms) {
+      taskTimeoutID = localSetTimeout(function() {
+        callback(exports.unstable_now());
+      }, ms);
+    }
+    typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== "undefined" && typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart === "function" && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
+    exports.unstable_now = undefined;
+    if (typeof performance === "object" && typeof performance.now === "function") {
+      var localPerformance = performance;
+      exports.unstable_now = function() {
+        return localPerformance.now();
+      };
+    } else {
+      var localDate = Date, initialTime = localDate.now();
+      exports.unstable_now = function() {
+        return localDate.now() - initialTime;
+      };
+    }
+    var taskQueue = [], timerQueue = [], taskIdCounter = 1, currentTask = null, currentPriorityLevel = 3, isPerformingWork = false, isHostCallbackScheduled = false, isHostTimeoutScheduled = false, needsPaint = false, localSetTimeout = typeof setTimeout === "function" ? setTimeout : null, localClearTimeout = typeof clearTimeout === "function" ? clearTimeout : null, localSetImmediate = typeof setImmediate !== "undefined" ? setImmediate : null, isMessageLoopRunning = false, taskTimeoutID = -1, frameInterval = 5, startTime = -1;
+    if (typeof localSetImmediate === "function")
+      var schedulePerformWorkUntilDeadline = function() {
+        localSetImmediate(performWorkUntilDeadline);
+      };
+    else if (typeof MessageChannel !== "undefined") {
+      var channel = new MessageChannel, port = channel.port2;
+      channel.port1.onmessage = performWorkUntilDeadline;
+      schedulePerformWorkUntilDeadline = function() {
+        port.postMessage(null);
+      };
+    } else
+      schedulePerformWorkUntilDeadline = function() {
+        localSetTimeout(performWorkUntilDeadline, 0);
+      };
+    exports.unstable_IdlePriority = 5;
+    exports.unstable_ImmediatePriority = 1;
+    exports.unstable_LowPriority = 4;
+    exports.unstable_NormalPriority = 3;
+    exports.unstable_Profiling = null;
+    exports.unstable_UserBlockingPriority = 2;
+    exports.unstable_cancelCallback = function(task) {
+      task.callback = null;
+    };
+    exports.unstable_forceFrameRate = function(fps) {
+      0 > fps || 125 < fps ? console.error("forceFrameRate takes a positive int between 0 and 125, forcing frame rates higher than 125 fps is not supported") : frameInterval = 0 < fps ? Math.floor(1000 / fps) : 5;
+    };
+    exports.unstable_getCurrentPriorityLevel = function() {
+      return currentPriorityLevel;
+    };
+    exports.unstable_next = function(eventHandler) {
+      switch (currentPriorityLevel) {
+        case 1:
+        case 2:
+        case 3:
+          var priorityLevel = 3;
+          break;
+        default:
+          priorityLevel = currentPriorityLevel;
+      }
+      var previousPriorityLevel = currentPriorityLevel;
+      currentPriorityLevel = priorityLevel;
+      try {
+        return eventHandler();
+      } finally {
+        currentPriorityLevel = previousPriorityLevel;
+      }
+    };
+    exports.unstable_requestPaint = function() {
+      needsPaint = true;
+    };
+    exports.unstable_runWithPriority = function(priorityLevel, eventHandler) {
+      switch (priorityLevel) {
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+          break;
+        default:
+          priorityLevel = 3;
+      }
+      var previousPriorityLevel = currentPriorityLevel;
+      currentPriorityLevel = priorityLevel;
+      try {
+        return eventHandler();
+      } finally {
+        currentPriorityLevel = previousPriorityLevel;
+      }
+    };
+    exports.unstable_scheduleCallback = function(priorityLevel, callback, options) {
+      var currentTime = exports.unstable_now();
+      typeof options === "object" && options !== null ? (options = options.delay, options = typeof options === "number" && 0 < options ? currentTime + options : currentTime) : options = currentTime;
+      switch (priorityLevel) {
+        case 1:
+          var timeout = -1;
+          break;
+        case 2:
+          timeout = 250;
+          break;
+        case 5:
+          timeout = 1073741823;
+          break;
+        case 4:
+          timeout = 1e4;
+          break;
+        default:
+          timeout = 5000;
+      }
+      timeout = options + timeout;
+      priorityLevel = {
+        id: taskIdCounter++,
+        callback,
+        priorityLevel,
+        startTime: options,
+        expirationTime: timeout,
+        sortIndex: -1
+      };
+      options > currentTime ? (priorityLevel.sortIndex = options, push(timerQueue, priorityLevel), peek(taskQueue) === null && priorityLevel === peek(timerQueue) && (isHostTimeoutScheduled ? (localClearTimeout(taskTimeoutID), taskTimeoutID = -1) : isHostTimeoutScheduled = true, requestHostTimeout(handleTimeout, options - currentTime))) : (priorityLevel.sortIndex = timeout, push(taskQueue, priorityLevel), isHostCallbackScheduled || isPerformingWork || (isHostCallbackScheduled = true, isMessageLoopRunning || (isMessageLoopRunning = true, schedulePerformWorkUntilDeadline())));
+      return priorityLevel;
+    };
+    exports.unstable_shouldYield = shouldYieldToHost;
+    exports.unstable_wrapCallback = function(callback) {
+      var parentPriorityLevel = currentPriorityLevel;
+      return function() {
+        var previousPriorityLevel = currentPriorityLevel;
+        currentPriorityLevel = parentPriorityLevel;
+        try {
+          return callback.apply(this, arguments);
+        } finally {
+          currentPriorityLevel = previousPriorityLevel;
+        }
+      };
+    };
+    typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== "undefined" && typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop === "function" && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
+  })();
+});
+
+// node_modules/scheduler/index.js
+var require_scheduler = __commonJS((exports, module) => {
+  var scheduler_development = __toESM(require_scheduler_development(), 1);
+  if (false) {} else {
+    module.exports = scheduler_development;
+  }
+});
+
 // node_modules/react/cjs/react.development.js
 var require_react_development = __commonJS((exports, module) => {
   (function() {
@@ -808,269 +1071,6 @@ var require_react = __commonJS((exports, module) => {
   var react_development = __toESM(require_react_development(), 1);
   if (false) {} else {
     module.exports = react_development;
-  }
-});
-
-// node_modules/scheduler/cjs/scheduler.development.js
-var require_scheduler_development = __commonJS((exports) => {
-  (function() {
-    function performWorkUntilDeadline() {
-      needsPaint = false;
-      if (isMessageLoopRunning) {
-        var currentTime = exports.unstable_now();
-        startTime = currentTime;
-        var hasMoreWork = true;
-        try {
-          a: {
-            isHostCallbackScheduled = false;
-            isHostTimeoutScheduled && (isHostTimeoutScheduled = false, localClearTimeout(taskTimeoutID), taskTimeoutID = -1);
-            isPerformingWork = true;
-            var previousPriorityLevel = currentPriorityLevel;
-            try {
-              b: {
-                advanceTimers(currentTime);
-                for (currentTask = peek(taskQueue);currentTask !== null && !(currentTask.expirationTime > currentTime && shouldYieldToHost()); ) {
-                  var callback = currentTask.callback;
-                  if (typeof callback === "function") {
-                    currentTask.callback = null;
-                    currentPriorityLevel = currentTask.priorityLevel;
-                    var continuationCallback = callback(currentTask.expirationTime <= currentTime);
-                    currentTime = exports.unstable_now();
-                    if (typeof continuationCallback === "function") {
-                      currentTask.callback = continuationCallback;
-                      advanceTimers(currentTime);
-                      hasMoreWork = true;
-                      break b;
-                    }
-                    currentTask === peek(taskQueue) && pop(taskQueue);
-                    advanceTimers(currentTime);
-                  } else
-                    pop(taskQueue);
-                  currentTask = peek(taskQueue);
-                }
-                if (currentTask !== null)
-                  hasMoreWork = true;
-                else {
-                  var firstTimer = peek(timerQueue);
-                  firstTimer !== null && requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
-                  hasMoreWork = false;
-                }
-              }
-              break a;
-            } finally {
-              currentTask = null, currentPriorityLevel = previousPriorityLevel, isPerformingWork = false;
-            }
-            hasMoreWork = undefined;
-          }
-        } finally {
-          hasMoreWork ? schedulePerformWorkUntilDeadline() : isMessageLoopRunning = false;
-        }
-      }
-    }
-    function push(heap, node) {
-      var index = heap.length;
-      heap.push(node);
-      a:
-        for (;0 < index; ) {
-          var parentIndex = index - 1 >>> 1, parent = heap[parentIndex];
-          if (0 < compare(parent, node))
-            heap[parentIndex] = node, heap[index] = parent, index = parentIndex;
-          else
-            break a;
-        }
-    }
-    function peek(heap) {
-      return heap.length === 0 ? null : heap[0];
-    }
-    function pop(heap) {
-      if (heap.length === 0)
-        return null;
-      var first = heap[0], last = heap.pop();
-      if (last !== first) {
-        heap[0] = last;
-        a:
-          for (var index = 0, length = heap.length, halfLength = length >>> 1;index < halfLength; ) {
-            var leftIndex = 2 * (index + 1) - 1, left = heap[leftIndex], rightIndex = leftIndex + 1, right = heap[rightIndex];
-            if (0 > compare(left, last))
-              rightIndex < length && 0 > compare(right, left) ? (heap[index] = right, heap[rightIndex] = last, index = rightIndex) : (heap[index] = left, heap[leftIndex] = last, index = leftIndex);
-            else if (rightIndex < length && 0 > compare(right, last))
-              heap[index] = right, heap[rightIndex] = last, index = rightIndex;
-            else
-              break a;
-          }
-      }
-      return first;
-    }
-    function compare(a, b) {
-      var diff = a.sortIndex - b.sortIndex;
-      return diff !== 0 ? diff : a.id - b.id;
-    }
-    function advanceTimers(currentTime) {
-      for (var timer = peek(timerQueue);timer !== null; ) {
-        if (timer.callback === null)
-          pop(timerQueue);
-        else if (timer.startTime <= currentTime)
-          pop(timerQueue), timer.sortIndex = timer.expirationTime, push(taskQueue, timer);
-        else
-          break;
-        timer = peek(timerQueue);
-      }
-    }
-    function handleTimeout(currentTime) {
-      isHostTimeoutScheduled = false;
-      advanceTimers(currentTime);
-      if (!isHostCallbackScheduled)
-        if (peek(taskQueue) !== null)
-          isHostCallbackScheduled = true, isMessageLoopRunning || (isMessageLoopRunning = true, schedulePerformWorkUntilDeadline());
-        else {
-          var firstTimer = peek(timerQueue);
-          firstTimer !== null && requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
-        }
-    }
-    function shouldYieldToHost() {
-      return needsPaint ? true : exports.unstable_now() - startTime < frameInterval ? false : true;
-    }
-    function requestHostTimeout(callback, ms) {
-      taskTimeoutID = localSetTimeout(function() {
-        callback(exports.unstable_now());
-      }, ms);
-    }
-    typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== "undefined" && typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart === "function" && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-    exports.unstable_now = undefined;
-    if (typeof performance === "object" && typeof performance.now === "function") {
-      var localPerformance = performance;
-      exports.unstable_now = function() {
-        return localPerformance.now();
-      };
-    } else {
-      var localDate = Date, initialTime = localDate.now();
-      exports.unstable_now = function() {
-        return localDate.now() - initialTime;
-      };
-    }
-    var taskQueue = [], timerQueue = [], taskIdCounter = 1, currentTask = null, currentPriorityLevel = 3, isPerformingWork = false, isHostCallbackScheduled = false, isHostTimeoutScheduled = false, needsPaint = false, localSetTimeout = typeof setTimeout === "function" ? setTimeout : null, localClearTimeout = typeof clearTimeout === "function" ? clearTimeout : null, localSetImmediate = typeof setImmediate !== "undefined" ? setImmediate : null, isMessageLoopRunning = false, taskTimeoutID = -1, frameInterval = 5, startTime = -1;
-    if (typeof localSetImmediate === "function")
-      var schedulePerformWorkUntilDeadline = function() {
-        localSetImmediate(performWorkUntilDeadline);
-      };
-    else if (typeof MessageChannel !== "undefined") {
-      var channel = new MessageChannel, port = channel.port2;
-      channel.port1.onmessage = performWorkUntilDeadline;
-      schedulePerformWorkUntilDeadline = function() {
-        port.postMessage(null);
-      };
-    } else
-      schedulePerformWorkUntilDeadline = function() {
-        localSetTimeout(performWorkUntilDeadline, 0);
-      };
-    exports.unstable_IdlePriority = 5;
-    exports.unstable_ImmediatePriority = 1;
-    exports.unstable_LowPriority = 4;
-    exports.unstable_NormalPriority = 3;
-    exports.unstable_Profiling = null;
-    exports.unstable_UserBlockingPriority = 2;
-    exports.unstable_cancelCallback = function(task) {
-      task.callback = null;
-    };
-    exports.unstable_forceFrameRate = function(fps) {
-      0 > fps || 125 < fps ? console.error("forceFrameRate takes a positive int between 0 and 125, forcing frame rates higher than 125 fps is not supported") : frameInterval = 0 < fps ? Math.floor(1000 / fps) : 5;
-    };
-    exports.unstable_getCurrentPriorityLevel = function() {
-      return currentPriorityLevel;
-    };
-    exports.unstable_next = function(eventHandler) {
-      switch (currentPriorityLevel) {
-        case 1:
-        case 2:
-        case 3:
-          var priorityLevel = 3;
-          break;
-        default:
-          priorityLevel = currentPriorityLevel;
-      }
-      var previousPriorityLevel = currentPriorityLevel;
-      currentPriorityLevel = priorityLevel;
-      try {
-        return eventHandler();
-      } finally {
-        currentPriorityLevel = previousPriorityLevel;
-      }
-    };
-    exports.unstable_requestPaint = function() {
-      needsPaint = true;
-    };
-    exports.unstable_runWithPriority = function(priorityLevel, eventHandler) {
-      switch (priorityLevel) {
-        case 1:
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-          break;
-        default:
-          priorityLevel = 3;
-      }
-      var previousPriorityLevel = currentPriorityLevel;
-      currentPriorityLevel = priorityLevel;
-      try {
-        return eventHandler();
-      } finally {
-        currentPriorityLevel = previousPriorityLevel;
-      }
-    };
-    exports.unstable_scheduleCallback = function(priorityLevel, callback, options) {
-      var currentTime = exports.unstable_now();
-      typeof options === "object" && options !== null ? (options = options.delay, options = typeof options === "number" && 0 < options ? currentTime + options : currentTime) : options = currentTime;
-      switch (priorityLevel) {
-        case 1:
-          var timeout = -1;
-          break;
-        case 2:
-          timeout = 250;
-          break;
-        case 5:
-          timeout = 1073741823;
-          break;
-        case 4:
-          timeout = 1e4;
-          break;
-        default:
-          timeout = 5000;
-      }
-      timeout = options + timeout;
-      priorityLevel = {
-        id: taskIdCounter++,
-        callback,
-        priorityLevel,
-        startTime: options,
-        expirationTime: timeout,
-        sortIndex: -1
-      };
-      options > currentTime ? (priorityLevel.sortIndex = options, push(timerQueue, priorityLevel), peek(taskQueue) === null && priorityLevel === peek(timerQueue) && (isHostTimeoutScheduled ? (localClearTimeout(taskTimeoutID), taskTimeoutID = -1) : isHostTimeoutScheduled = true, requestHostTimeout(handleTimeout, options - currentTime))) : (priorityLevel.sortIndex = timeout, push(taskQueue, priorityLevel), isHostCallbackScheduled || isPerformingWork || (isHostCallbackScheduled = true, isMessageLoopRunning || (isMessageLoopRunning = true, schedulePerformWorkUntilDeadline())));
-      return priorityLevel;
-    };
-    exports.unstable_shouldYield = shouldYieldToHost;
-    exports.unstable_wrapCallback = function(callback) {
-      var parentPriorityLevel = currentPriorityLevel;
-      return function() {
-        var previousPriorityLevel = currentPriorityLevel;
-        currentPriorityLevel = parentPriorityLevel;
-        try {
-          return callback.apply(this, arguments);
-        } finally {
-          currentPriorityLevel = previousPriorityLevel;
-        }
-      };
-    };
-    typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== "undefined" && typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop === "function" && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
-  })();
-});
-
-// node_modules/scheduler/index.js
-var require_scheduler = __commonJS((exports, module) => {
-  var scheduler_development = __toESM(require_scheduler_development(), 1);
-  if (false) {} else {
-    module.exports = scheduler_development;
   }
 });
 
@@ -15872,10 +15872,13 @@ var require_jsx_dev_runtime = __commonJS((exports, module) => {
   }
 });
 
-// public/app.tsx
-var import_react = __toESM(require_react(), 1);
+// public/index.tsx
 var import_client = __toESM(require_client(), 1);
-var jsx_dev_runtime = __toESM(require_jsx_dev_runtime(), 1);
+
+// public/App.tsx
+var import_react4 = __toESM(require_react(), 1);
+
+// public/styles/theme.ts
 var colors = {
   gray: {
     25: "#FCFCFD",
@@ -15931,98 +15934,23 @@ var colors = {
     900: "#054F31"
   }
 };
-function App() {
-  const [mode, setMode] = import_react.useState("search");
-  const [query, setQuery] = import_react.useState("");
-  const [results, setResults] = import_react.useState([]);
-  const [loading, setLoading] = import_react.useState(false);
-  const [scriptTitle, setScriptTitle] = import_react.useState("");
-  const [scriptContent, setScriptContent] = import_react.useState("");
-  const [scripts, setScripts] = import_react.useState([]);
-  const [uploadProgress, setUploadProgress] = import_react.useState("");
-  const [uploadStatus, setUploadStatus] = import_react.useState("idle");
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!query.trim())
-      return;
-    setLoading(true);
-    try {
-      const response = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query })
-      });
-      const data = await response.json();
-      setResults(data.results || []);
-    } catch (error) {
-      console.error("Search failed:", error);
-      alert("Search failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleUpload = async (e) => {
-    e.preventDefault();
-    if (!scriptTitle.trim() || !scriptContent.trim()) {
-      alert("Please provide both title and content");
-      return;
-    }
-    setLoading(true);
-    setUploadStatus("idle");
-    setUploadProgress("Uploading and processing document...");
-    try {
-      const response = await fetch("/api/scripts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: scriptTitle, content: scriptContent })
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      if (data.success) {
-        setUploadStatus("success");
-        if (data.chunksCreated < data.totalChunks) {
-          setUploadProgress(`Partial success: ${data.chunksCreated}/${data.totalChunks} chunks processed. Some chunks failed due to rate limits.`);
-        } else {
-          setUploadProgress(`Success! Created ${data.chunksCreated} chunks.`);
-        }
-        setScriptTitle("");
-        setScriptContent("");
-        loadScripts();
-        setTimeout(() => {
-          setUploadProgress("");
-          setUploadStatus("idle");
-        }, 5000);
-      } else {
-        throw new Error(data.error || "Unknown error occurred");
-      }
-    } catch (error) {
-      console.error("Upload failed:", error);
-      setUploadStatus("error");
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      setUploadProgress(`Upload failed: ${errorMessage}`);
-      setTimeout(() => {
-        setUploadProgress("");
-        setUploadStatus("idle");
-      }, 5000);
-    } finally {
-      setLoading(false);
-    }
-  };
-  const loadScripts = async () => {
-    try {
-      const response = await fetch("/api/scripts");
-      const data = await response.json();
-      setScripts(data);
-    } catch (error) {
-      console.error("Failed to load scripts:", error);
-    }
-  };
-  import_react.default.useEffect(() => {
-    loadScripts();
-  }, []);
+var spacing = {
+  xs: "4px",
+  sm: "8px",
+  md: "12px",
+  lg: "16px",
+  xl: "24px",
+  xxl: "32px",
+  xxxl: "48px"
+};
+var typography = {
+  fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  fontFamilyMono: "'SF Mono', Monaco, Inconsolata, 'Fira Code', monospace"
+};
+
+// public/components/Layout.tsx
+var jsx_dev_runtime = __toESM(require_jsx_dev_runtime(), 1);
+function Layout({ children }) {
   return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
     style: styles.container,
     children: [
@@ -16040,258 +15968,9 @@ function App() {
         ]
       }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-        style: styles.nav,
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
-            style: { ...styles.navButton, ...mode === "search" ? styles.navButtonActive : {} },
-            onClick: () => setMode("search"),
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("svg", {
-                width: "20",
-                height: "20",
-                viewBox: "0 0 20 20",
-                fill: "none",
-                style: styles.icon,
-                children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("path", {
-                  d: "M17.5 17.5L14.5834 14.5833M16.6667 9.58333C16.6667 13.4954 13.4954 16.6667 9.58333 16.6667C5.67132 16.6667 2.5 13.4954 2.5 9.58333C2.5 5.67132 5.67132 2.5 9.58333 2.5C13.4954 2.5 16.6667 5.67132 16.6667 9.58333Z",
-                  stroke: "currentColor",
-                  strokeWidth: "1.66667",
-                  strokeLinecap: "round",
-                  strokeLinejoin: "round"
-                }, undefined, false, undefined, this)
-              }, undefined, false, undefined, this),
-              "Search"
-            ]
-          }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
-            style: { ...styles.navButton, ...mode === "upload" ? styles.navButtonActive : {} },
-            onClick: () => setMode("upload"),
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("svg", {
-                width: "20",
-                height: "20",
-                viewBox: "0 0 20 20",
-                fill: "none",
-                style: styles.icon,
-                children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("path", {
-                  d: "M6.66667 13.3333L10 10M10 10L13.3333 13.3333M10 10V17.5M16.6667 13.9524C17.6846 13.1117 18.3333 11.8399 18.3333 10.4167C18.3333 7.88536 16.2813 5.83333 13.75 5.83333C13.5679 5.83333 13.3975 5.73833 13.3051 5.58145C12.2184 3.73736 10.212 2.5 7.91667 2.5C4.46489 2.5 1.66667 5.29822 1.66667 8.75C1.66667 10.4718 2.36287 12.0309 3.48912 13.1613",
-                  stroke: "currentColor",
-                  strokeWidth: "1.66667",
-                  strokeLinecap: "round",
-                  strokeLinejoin: "round"
-                }, undefined, false, undefined, this)
-              }, undefined, false, undefined, this),
-              "Upload"
-            ]
-          }, undefined, true, undefined, this)
-        ]
-      }, undefined, true, undefined, this),
-      mode === "search" ? /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
         style: styles.content,
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("form", {
-            onSubmit: handleSearch,
-            style: styles.searchForm,
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                style: styles.searchInputWrapper,
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("svg", {
-                    width: "20",
-                    height: "20",
-                    viewBox: "0 0 20 20",
-                    fill: "none",
-                    style: styles.searchIcon,
-                    children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("path", {
-                      d: "M17.5 17.5L14.5834 14.5833M16.6667 9.58333C16.6667 13.4954 13.4954 16.6667 9.58333 16.6667C5.67132 16.6667 2.5 13.4954 2.5 9.58333C2.5 5.67132 5.67132 2.5 9.58333 2.5C13.4954 2.5 16.6667 5.67132 16.6667 9.58333Z",
-                      stroke: colors.gray[400],
-                      strokeWidth: "1.66667",
-                      strokeLinecap: "round",
-                      strokeLinejoin: "round"
-                    }, undefined, false, undefined, this)
-                  }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("input", {
-                    type: "text",
-                    value: query,
-                    onChange: (e) => setQuery(e.target.value),
-                    placeholder: "Search for content...",
-                    style: styles.searchInput,
-                    disabled: loading
-                  }, undefined, false, undefined, this)
-                ]
-              }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
-                type: "submit",
-                style: { ...styles.primaryButton, ...loading ? styles.buttonDisabled : {} },
-                disabled: loading,
-                children: loading ? "Searching..." : "Search"
-              }, undefined, false, undefined, this)
-            ]
-          }, undefined, true, undefined, this),
-          results.length > 0 && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            style: styles.results,
-            children: results.map((result, index) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-              style: styles.resultCard,
-              children: [
-                /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                  style: styles.resultHeader,
-                  children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                    children: [
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("h3", {
-                        style: styles.resultTitle,
-                        children: result.scriptTitle
-                      }, undefined, false, undefined, this),
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                        style: styles.badge,
-                        children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-                          style: styles.badgeText,
-                          children: [
-                            (result.similarity * 100).toFixed(1),
-                            "% match"
-                          ]
-                        }, undefined, true, undefined, this)
-                      }, undefined, false, undefined, this)
-                    ]
-                  }, undefined, true, undefined, this)
-                }, undefined, false, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime.jsxDEV("pre", {
-                  style: styles.resultContent,
-                  children: result.content
-                }, undefined, false, undefined, this)
-              ]
-            }, index, true, undefined, this))
-          }, undefined, false, undefined, this),
-          results.length === 0 && query && !loading && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            style: styles.emptyState,
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("svg", {
-                width: "48",
-                height: "48",
-                viewBox: "0 0 48 48",
-                fill: "none",
-                style: { marginBottom: "16px" },
-                children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("path", {
-                  d: "M42 42L35.0001 35M40 22C40 31.9411 31.9411 40 22 40C12.0589 40 4 31.9411 4 22C4 12.0589 12.0589 4 22 4C31.9411 4 40 12.0589 40 22Z",
-                  stroke: colors.gray[400],
-                  strokeWidth: "3",
-                  strokeLinecap: "round",
-                  strokeLinejoin: "round"
-                }, undefined, false, undefined, this)
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                style: styles.emptyStateText,
-                children: "No results found"
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                style: styles.emptyStateSubtext,
-                children: "Try adjusting your search query"
-              }, undefined, false, undefined, this)
-            ]
-          }, undefined, true, undefined, this)
-        ]
-      }, undefined, true, undefined, this) : /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-        style: styles.content,
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("form", {
-            onSubmit: handleUpload,
-            style: styles.uploadForm,
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                style: styles.formGroup,
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
-                    style: styles.label,
-                    children: "Document Title"
-                  }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("input", {
-                    type: "text",
-                    value: scriptTitle,
-                    onChange: (e) => setScriptTitle(e.target.value),
-                    placeholder: "Enter a title for your document",
-                    style: styles.input,
-                    disabled: loading
-                  }, undefined, false, undefined, this)
-                ]
-              }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                style: styles.formGroup,
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
-                    style: styles.label,
-                    children: "Content"
-                  }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("textarea", {
-                    value: scriptContent,
-                    onChange: (e) => setScriptContent(e.target.value),
-                    placeholder: "Paste your text content here...",
-                    style: styles.textarea,
-                    disabled: loading
-                  }, undefined, false, undefined, this)
-                ]
-              }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
-                type: "submit",
-                style: { ...styles.primaryButton, ...loading ? styles.buttonDisabled : {} },
-                disabled: loading,
-                children: loading ? "Processing..." : "Upload Document"
-              }, undefined, false, undefined, this)
-            ]
-          }, undefined, true, undefined, this),
-          uploadProgress && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            style: {
-              ...styles.alert,
-              ...uploadStatus === "success" ? styles.alertSuccess : uploadStatus === "error" ? styles.alertError : styles.alertInfo
-            },
-            children: uploadProgress
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            style: styles.documentsSection,
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV("h2", {
-                style: styles.sectionTitle,
-                children: "Uploaded Documents"
-              }, undefined, false, undefined, this),
-              scripts.length > 0 ? /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                style: styles.documentsList,
-                children: scripts.map((script) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                  style: styles.documentItem,
-                  children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                    children: [
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("h4", {
-                        style: styles.documentTitle,
-                        children: script.title
-                      }, undefined, false, undefined, this),
-                      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                        style: styles.documentDate,
-                        children: [
-                          "Uploaded ",
-                          new Date(script.uploadedAt).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric"
-                          })
-                        ]
-                      }, undefined, true, undefined, this)
-                    ]
-                  }, undefined, true, undefined, this)
-                }, script.id, false, undefined, this))
-              }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-                style: styles.emptyDocuments,
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                    style: styles.emptyStateText,
-                    children: "No documents uploaded yet"
-                  }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV("p", {
-                    style: styles.emptyStateSubtext,
-                    children: "Upload your first document to get started"
-                  }, undefined, false, undefined, this)
-                ]
-              }, undefined, true, undefined, this)
-            ]
-          }, undefined, true, undefined, this)
-        ]
-      }, undefined, true, undefined, this)
+        children
+      }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
 }
@@ -16300,18 +15979,18 @@ var styles = {
     minHeight: "100vh",
     backgroundColor: colors.gray[950],
     color: colors.gray[100],
-    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    fontFamily: typography.fontFamily
   },
   header: {
     textAlign: "center",
-    padding: "48px 24px 32px",
+    padding: `${spacing.xxxl} ${spacing.xl} ${spacing.xxl}`,
     borderBottom: `1px solid ${colors.gray[800]}`
   },
   title: {
     fontSize: "36px",
     fontWeight: 600,
     color: colors.gray[25],
-    margin: "0 0 8px 0",
+    margin: `0 0 ${spacing.sm} 0`,
     letterSpacing: "-0.02em"
   },
   subtitle: {
@@ -16319,124 +15998,329 @@ var styles = {
     color: colors.gray[400],
     margin: 0
   },
-  nav: {
-    display: "flex",
-    justifyContent: "center",
-    gap: "8px",
-    padding: "24px"
-  },
-  navButton: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "10px 16px",
-    border: `1px solid ${colors.gray[700]}`,
-    background: colors.gray[900],
-    color: colors.gray[300],
-    cursor: "pointer",
-    borderRadius: "8px",
-    fontSize: "14px",
-    fontWeight: 500,
-    transition: "all 0.2s",
-    outline: "none"
-  },
-  navButtonActive: {
-    background: colors.gray[800],
-    borderColor: colors.gray[600],
-    color: colors.gray[50]
-  },
-  icon: {
-    width: "20px",
-    height: "20px"
-  },
   content: {
     maxWidth: "800px",
     margin: "0 auto",
-    padding: "0 24px 48px"
-  },
-  searchForm: {
-    display: "flex",
-    gap: "12px",
-    marginBottom: "32px",
-    alignItems: "stretch",
-    flexWrap: "nowrap"
-  },
-  searchInputWrapper: {
-    position: "relative",
-    flex: "1 1 auto",
-    minWidth: 0
-  },
-  searchIcon: {
-    position: "absolute",
-    left: "14px",
-    top: "50%",
-    transform: "translateY(-50%)",
-    pointerEvents: "none"
-  },
-  searchInput: {
-    width: "100%",
-    padding: "12px 12px 12px 44px",
-    fontSize: "16px",
-    border: `1px solid ${colors.gray[700]}`,
-    borderRadius: "8px",
-    background: colors.gray[900],
-    color: colors.gray[100],
-    outline: "none",
-    transition: "border-color 0.2s",
-    boxSizing: "border-box",
-    "::placeholder": {
-      color: colors.gray[500]
-    }
-  },
-  input: {
-    width: "100%",
-    padding: "12px 14px",
-    fontSize: "16px",
-    border: `1px solid ${colors.gray[700]}`,
-    borderRadius: "8px",
-    background: colors.gray[900],
-    color: colors.gray[100],
-    outline: "none",
-    transition: "border-color 0.2s"
-  },
-  textarea: {
-    width: "100%",
-    padding: "12px 14px",
-    fontSize: "16px",
-    border: `1px solid ${colors.gray[700]}`,
-    borderRadius: "8px",
-    background: colors.gray[900],
-    color: colors.gray[100],
-    outline: "none",
-    transition: "border-color 0.2s",
-    minHeight: "300px",
-    resize: "vertical",
-    fontFamily: "inherit"
-  },
-  primaryButton: {
+    padding: `0 ${spacing.xl} ${spacing.xxxl}`
+  }
+};
+
+// public/components/Button.tsx
+var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
+function Button({
+  variant = "primary",
+  loading = false,
+  icon,
+  children,
+  disabled,
+  style,
+  ...props
+}) {
+  const baseStyles = {
     padding: "12px 20px",
-    background: colors.primary[600],
-    color: "white",
     border: "none",
     borderRadius: "8px",
-    cursor: "pointer",
+    cursor: disabled || loading ? "not-allowed" : "pointer",
     fontSize: "16px",
     fontWeight: 500,
     transition: "all 0.2s",
     whiteSpace: "nowrap",
-    flexShrink: 0,
     display: "inline-flex",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    gap: "8px",
+    flexShrink: 0,
+    opacity: disabled || loading ? 0.5 : 1
+  };
+  const variantStyles = {
+    primary: {
+      background: colors.primary[600],
+      color: "white"
+    },
+    secondary: {
+      background: colors.gray[900],
+      color: colors.gray[300],
+      border: `1px solid ${colors.gray[700]}`
+    }
+  };
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("button", {
+    ...props,
+    disabled: disabled || loading,
+    style: {
+      ...baseStyles,
+      ...variantStyles[variant],
+      ...style
+    },
+    children: [
+      icon,
+      loading ? "Loading..." : children
+    ]
+  }, undefined, true, undefined, this);
+}
+
+// public/components/Navigation.tsx
+var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
+function Navigation({ activeMode, onModeChange }) {
+  const SearchIcon = /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("svg", {
+    width: "20",
+    height: "20",
+    viewBox: "0 0 20 20",
+    fill: "none",
+    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("path", {
+      d: "M17.5 17.5L14.5834 14.5833M16.6667 9.58333C16.6667 13.4954 13.4954 16.6667 9.58333 16.6667C5.67132 16.6667 2.5 13.4954 2.5 9.58333C2.5 5.67132 5.67132 2.5 9.58333 2.5C13.4954 2.5 16.6667 5.67132 16.6667 9.58333Z",
+      stroke: "currentColor",
+      strokeWidth: "1.66667",
+      strokeLinecap: "round",
+      strokeLinejoin: "round"
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+  const UploadIcon = /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("svg", {
+    width: "20",
+    height: "20",
+    viewBox: "0 0 20 20",
+    fill: "none",
+    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("path", {
+      d: "M6.66667 13.3333L10 10M10 10L13.3333 13.3333M10 10V17.5M16.6667 13.9524C17.6846 13.1117 18.3333 11.8399 18.3333 10.4167C18.3333 7.88536 16.2813 5.83333 13.75 5.83333C13.5679 5.83333 13.3975 5.73833 13.3051 5.58145C12.2184 3.73736 10.212 2.5 7.91667 2.5C4.46489 2.5 1.66667 5.29822 1.66667 8.75C1.66667 10.4718 2.36287 12.0309 3.48912 13.1613",
+      stroke: "currentColor",
+      strokeWidth: "1.66667",
+      strokeLinecap: "round",
+      strokeLinejoin: "round"
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+    style: styles2.nav,
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Button, {
+        variant: activeMode === "search" ? "primary" : "secondary",
+        onClick: () => onModeChange("search"),
+        icon: SearchIcon,
+        style: styles2.navButton,
+        children: "Search"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Button, {
+        variant: activeMode === "upload" ? "primary" : "secondary",
+        onClick: () => onModeChange("upload"),
+        icon: UploadIcon,
+        style: styles2.navButton,
+        children: "Upload"
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+var styles2 = {
+  nav: {
+    display: "flex",
+    justifyContent: "center",
+    gap: spacing.sm,
+    padding: spacing.xl
   },
-  buttonDisabled: {
-    opacity: 0.5,
-    cursor: "not-allowed"
+  navButton: {
+    minWidth: "120px"
+  }
+};
+
+// public/components/Search.tsx
+var import_react = __toESM(require_react(), 1);
+
+// public/components/Input.tsx
+var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
+function Input({ label, icon, style, ...props }) {
+  const inputStyles = {
+    width: "100%",
+    padding: icon ? "12px 12px 12px 44px" : "12px 14px",
+    fontSize: "16px",
+    border: `1px solid ${colors.gray[700]}`,
+    borderRadius: "8px",
+    background: colors.gray[900],
+    color: colors.gray[100],
+    outline: "none",
+    transition: "border-color 0.2s",
+    boxSizing: "border-box"
+  };
+  const wrapperStyles = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+    position: "relative",
+    width: "100%"
+  };
+  const iconStyles = {
+    position: "absolute",
+    left: "14px",
+    top: label ? "36px" : "50%",
+    transform: label ? "none" : "translateY(-50%)",
+    pointerEvents: "none"
+  };
+  const labelStyles = {
+    fontSize: "14px",
+    fontWeight: 500,
+    color: colors.gray[300]
+  };
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+    style: wrapperStyles,
+    children: [
+      label && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("label", {
+        style: labelStyles,
+        children: label
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+        style: { position: "relative" },
+        children: [
+          icon && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+            style: iconStyles,
+            children: icon
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("input", {
+            ...props,
+            style: { ...inputStyles, ...style }
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+
+// public/components/Search.tsx
+var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
+function Search({ onSearch }) {
+  const [query, setQuery] = import_react.useState("");
+  const [results, setResults] = import_react.useState([]);
+  const [loading, setLoading] = import_react.useState(false);
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!query.trim())
+      return;
+    setLoading(true);
+    try {
+      const searchResults = await onSearch(query);
+      setResults(searchResults);
+    } catch (error) {
+      console.error("Search failed:", error);
+      alert("Search failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const SearchIcon = /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("svg", {
+    width: "20",
+    height: "20",
+    viewBox: "0 0 20 20",
+    fill: "none",
+    children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("path", {
+      d: "M17.5 17.5L14.5834 14.5833M16.6667 9.58333C16.6667 13.4954 13.4954 16.6667 9.58333 16.6667C5.67132 16.6667 2.5 13.4954 2.5 9.58333C2.5 5.67132 5.67132 2.5 9.58333 2.5C13.4954 2.5 16.6667 5.67132 16.6667 9.58333Z",
+      stroke: colors.gray[400],
+      strokeWidth: "1.66667",
+      strokeLinecap: "round",
+      strokeLinejoin: "round"
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+    style: styles3.container,
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("form", {
+        onSubmit: handleSearch,
+        style: styles3.searchForm,
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+            style: styles3.searchInputWrapper,
+            children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Input, {
+              type: "text",
+              value: query,
+              onChange: (e) => setQuery(e.target.value),
+              placeholder: "Search for content...",
+              disabled: loading,
+              icon: SearchIcon
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Button, {
+            type: "submit",
+            loading,
+            children: loading ? "Searching..." : "Search"
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      results.length > 0 && /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+        style: styles3.results,
+        children: results.map((result, index) => /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+          style: styles3.resultCard,
+          children: [
+            /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+              style: styles3.resultHeader,
+              children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+                children: [
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("h3", {
+                    style: styles3.resultTitle,
+                    children: result.scriptTitle
+                  }, undefined, false, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+                    style: styles3.badge,
+                    children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
+                      style: styles3.badgeText,
+                      children: [
+                        (result.similarity * 100).toFixed(1),
+                        "% match"
+                      ]
+                    }, undefined, true, undefined, this)
+                  }, undefined, false, undefined, this)
+                ]
+              }, undefined, true, undefined, this)
+            }, undefined, false, undefined, this),
+            /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("pre", {
+              style: styles3.resultContent,
+              children: result.content
+            }, undefined, false, undefined, this)
+          ]
+        }, index, true, undefined, this))
+      }, undefined, false, undefined, this),
+      results.length === 0 && query && !loading && /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+        style: styles3.emptyState,
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("svg", {
+            width: "48",
+            height: "48",
+            viewBox: "0 0 48 48",
+            fill: "none",
+            style: { marginBottom: spacing.lg },
+            children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("path", {
+              d: "M42 42L35.0001 35M40 22C40 31.9411 31.9411 40 22 40C12.0589 40 4 31.9411 4 22C4 12.0589 12.0589 4 22 4C31.9411 4 40 12.0589 40 22Z",
+              stroke: colors.gray[400],
+              strokeWidth: "3",
+              strokeLinecap: "round",
+              strokeLinejoin: "round"
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
+            style: styles3.emptyStateText,
+            children: "No results found"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("p", {
+            style: styles3.emptyStateSubtext,
+            children: "Try adjusting your search query"
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+var styles3 = {
+  container: {
+    width: "100%"
+  },
+  searchForm: {
+    display: "flex",
+    gap: spacing.md,
+    marginBottom: spacing.xxl,
+    alignItems: "stretch",
+    flexWrap: "nowrap"
+  },
+  searchInputWrapper: {
+    flex: "1 1 auto",
+    minWidth: 0
   },
   results: {
     display: "flex",
     flexDirection: "column",
-    gap: "16px"
+    gap: spacing.lg
   },
   resultCard: {
     padding: "20px",
@@ -16446,13 +16330,13 @@ var styles = {
     transition: "all 0.2s"
   },
   resultHeader: {
-    marginBottom: "16px"
+    marginBottom: spacing.lg
   },
   resultTitle: {
     fontSize: "16px",
     fontWeight: 600,
     color: colors.gray[100],
-    margin: "0 0 8px 0"
+    margin: `0 0 ${spacing.sm} 0`
   },
   badge: {
     display: "inline-block",
@@ -16474,64 +16358,265 @@ var styles = {
     fontFamily: "'SF Mono', Monaco, Inconsolata, 'Fira Code', monospace",
     fontSize: "14px",
     background: colors.gray[950],
-    padding: "16px",
+    padding: spacing.lg,
     borderRadius: "8px",
     border: `1px solid ${colors.gray[800]}`,
     overflow: "auto"
   },
-  uploadForm: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "24px"
+  emptyState: {
+    textAlign: "center",
+    padding: spacing.xxxl
   },
-  formGroup: {
+  emptyStateText: {
+    fontSize: "16px",
+    fontWeight: 500,
+    color: colors.gray[300],
+    margin: `0 0 ${spacing.xs} 0`
+  },
+  emptyStateSubtext: {
+    fontSize: "14px",
+    color: colors.gray[500],
+    margin: 0
+  }
+};
+
+// public/components/Upload.tsx
+var import_react2 = __toESM(require_react(), 1);
+
+// public/components/TextArea.tsx
+var jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
+function TextArea({ label, style, ...props }) {
+  const textareaStyles = {
+    width: "100%",
+    padding: "12px 14px",
+    fontSize: "16px",
+    border: `1px solid ${colors.gray[700]}`,
+    borderRadius: "8px",
+    background: colors.gray[900],
+    color: colors.gray[100],
+    outline: "none",
+    transition: "border-color 0.2s",
+    minHeight: "300px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box"
+  };
+  const wrapperStyles = {
     display: "flex",
     flexDirection: "column",
     gap: "6px"
-  },
-  label: {
+  };
+  const labelStyles = {
     fontSize: "14px",
     fontWeight: 500,
     color: colors.gray[300]
-  },
-  alert: {
+  };
+  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("div", {
+    style: wrapperStyles,
+    children: [
+      label && /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("label", {
+        style: labelStyles,
+        children: label
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("textarea", {
+        ...props,
+        style: { ...textareaStyles, ...style }
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+
+// public/components/Alert.tsx
+var jsx_dev_runtime7 = __toESM(require_jsx_dev_runtime(), 1);
+function Alert({ variant, children }) {
+  const baseStyles = {
     padding: "12px 16px",
     borderRadius: "8px",
     fontSize: "14px",
-    marginTop: "16px",
     border: "1px solid"
+  };
+  const variantStyles = {
+    info: {
+      background: colors.gray[900],
+      borderColor: colors.gray[700],
+      color: colors.gray[300]
+    },
+    success: {
+      background: colors.success[900] + "1A",
+      borderColor: colors.success[700],
+      color: colors.success[300]
+    },
+    error: {
+      background: colors.error[900] + "1A",
+      borderColor: colors.error[700],
+      color: colors.error[300]
+    }
+  };
+  return /* @__PURE__ */ jsx_dev_runtime7.jsxDEV("div", {
+    style: { ...baseStyles, ...variantStyles[variant] },
+    children
+  }, undefined, false, undefined, this);
+}
+
+// public/components/Upload.tsx
+var jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
+function Upload({ documents, onUpload, onDocumentsChange }) {
+  const [title, setTitle] = import_react2.useState("");
+  const [content, setContent] = import_react2.useState("");
+  const [loading, setLoading] = import_react2.useState(false);
+  const [uploadProgress, setUploadProgress] = import_react2.useState("");
+  const [uploadStatus, setUploadStatus] = import_react2.useState("idle");
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!title.trim() || !content.trim()) {
+      alert("Please provide both title and content");
+      return;
+    }
+    setLoading(true);
+    setUploadStatus("idle");
+    setUploadProgress("Uploading and processing document...");
+    try {
+      const result = await onUpload(title, content);
+      if (result.success) {
+        setUploadStatus("success");
+        if (result.chunksCreated && result.totalChunks && result.chunksCreated < result.totalChunks) {
+          setUploadProgress(`Partial success: ${result.chunksCreated}/${result.totalChunks} chunks processed. Some chunks failed due to rate limits.`);
+        } else {
+          setUploadProgress(`Success! Created ${result.chunksCreated} chunks.`);
+        }
+        setTitle("");
+        setContent("");
+        onDocumentsChange();
+        setTimeout(() => {
+          setUploadProgress("");
+          setUploadStatus("idle");
+        }, 5000);
+      } else {
+        throw new Error(result.error || "Unknown error occurred");
+      }
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setUploadStatus("error");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      setUploadProgress(`Upload failed: ${errorMessage}`);
+      setTimeout(() => {
+        setUploadProgress("");
+        setUploadStatus("idle");
+      }, 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+    style: styles4.container,
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("form", {
+        onSubmit: handleUpload,
+        style: styles4.uploadForm,
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Input, {
+            label: "Document Title",
+            type: "text",
+            value: title,
+            onChange: (e) => setTitle(e.target.value),
+            placeholder: "Enter a title for your document",
+            disabled: loading
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(TextArea, {
+            label: "Content",
+            value: content,
+            onChange: (e) => setContent(e.target.value),
+            placeholder: "Paste your text content here...",
+            disabled: loading
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Button, {
+            type: "submit",
+            loading,
+            children: loading ? "Processing..." : "Upload Document"
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      uploadProgress && /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+        style: { marginTop: spacing.lg },
+        children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Alert, {
+          variant: uploadStatus,
+          children: uploadProgress
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+        style: styles4.documentsSection,
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("h2", {
+            style: styles4.sectionTitle,
+            children: "Uploaded Documents"
+          }, undefined, false, undefined, this),
+          documents.length > 0 ? /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+            style: styles4.documentsList,
+            children: documents.map((doc) => /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+              style: styles4.documentItem,
+              children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+                children: [
+                  /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("h4", {
+                    style: styles4.documentTitle,
+                    children: doc.title
+                  }, undefined, false, undefined, this),
+                  /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("p", {
+                    style: styles4.documentDate,
+                    children: [
+                      "Uploaded ",
+                      new Date(doc.uploadedAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric"
+                      })
+                    ]
+                  }, undefined, true, undefined, this)
+                ]
+              }, undefined, true, undefined, this)
+            }, doc.id, false, undefined, this))
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+            style: styles4.emptyDocuments,
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("p", {
+                style: styles4.emptyStateText,
+                children: "No documents uploaded yet"
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("p", {
+                style: styles4.emptyStateSubtext,
+                children: "Upload your first document to get started"
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+var styles4 = {
+  container: {
+    width: "100%"
   },
-  alertInfo: {
-    background: colors.gray[900],
-    borderColor: colors.gray[700],
-    color: colors.gray[300]
-  },
-  alertSuccess: {
-    background: colors.success[900] + "1A",
-    borderColor: colors.success[700],
-    color: colors.success[300]
-  },
-  alertError: {
-    background: colors.error[900] + "1A",
-    borderColor: colors.error[700],
-    color: colors.error[300]
+  uploadForm: {
+    display: "flex",
+    flexDirection: "column",
+    gap: spacing.xl
   },
   documentsSection: {
-    marginTop: "48px"
+    marginTop: spacing.xxxl
   },
   sectionTitle: {
     fontSize: "20px",
     fontWeight: 600,
     color: colors.gray[100],
-    marginBottom: "16px"
+    marginBottom: spacing.lg
   },
   documentsList: {
     display: "flex",
     flexDirection: "column",
-    gap: "8px"
+    gap: spacing.sm
   },
   documentItem: {
-    padding: "16px",
+    padding: spacing.lg,
     border: `1px solid ${colors.gray[800]}`,
     borderRadius: "8px",
     background: colors.gray[900],
@@ -16541,84 +16626,154 @@ var styles = {
     fontSize: "14px",
     fontWeight: 500,
     color: colors.gray[100],
-    margin: "0 0 4px 0"
+    margin: `0 0 ${spacing.xs} 0`
   },
   documentDate: {
     fontSize: "13px",
     color: colors.gray[500],
     margin: 0
   },
-  emptyState: {
+  emptyDocuments: {
     textAlign: "center",
-    padding: "48px 24px"
+    padding: spacing.xxl,
+    border: `1px solid ${colors.gray[800]}`,
+    borderRadius: "8px",
+    background: colors.gray[900]
   },
   emptyStateText: {
     fontSize: "16px",
     fontWeight: 500,
     color: colors.gray[300],
-    margin: "0 0 4px 0"
+    margin: `0 0 ${spacing.xs} 0`
   },
   emptyStateSubtext: {
     fontSize: "14px",
     color: colors.gray[500],
     margin: 0
-  },
-  emptyDocuments: {
-    textAlign: "center",
-    padding: "32px",
-    border: `1px solid ${colors.gray[800]}`,
-    borderRadius: "8px",
-    background: colors.gray[900]
   }
 };
-var globalStyles = document.createElement("style");
-globalStyles.innerHTML = `
-  * {
-    box-sizing: border-box;
-  }
-  
-  body {
-    margin: 0;
-    background-color: ${colors.gray[950]};
-  }
-  
-  input:focus, textarea:focus {
-    border-color: ${colors.primary[600]} !important;
-    box-shadow: 0 0 0 3px ${colors.primary[600]}1A !important;
-  }
-  
-  button:hover:not(:disabled) {
-    background-color: ${colors.primary[700]} !important;
-  }
-  
-  button:active:not(:disabled) {
-    transform: translateY(1px);
-  }
-  
-  ::selection {
-    background-color: ${colors.primary[600]}4D;
-    color: white;
-  }
-  
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  
-  ::-webkit-scrollbar-track {
-    background: ${colors.gray[900]};
-  }
-  
-  ::-webkit-scrollbar-thumb {
-    background: ${colors.gray[700]};
-    border-radius: 4px;
-  }
-  
-  ::-webkit-scrollbar-thumb:hover {
-    background: ${colors.gray[600]};
-  }
-`;
-document.head.appendChild(globalStyles);
+
+// public/styles/GlobalStyles.tsx
+var import_react3 = __toESM(require_react(), 1);
+function GlobalStyles() {
+  import_react3.default.useEffect(() => {
+    const style = document.createElement("style");
+    style.innerHTML = `
+      * {
+        box-sizing: border-box;
+      }
+      
+      body {
+        margin: 0;
+        background-color: ${colors.gray[950]};
+      }
+      
+      input:focus, textarea:focus {
+        border-color: ${colors.primary[600]} !important;
+        box-shadow: 0 0 0 3px ${colors.primary[600]}1A !important;
+      }
+      
+      button:hover:not(:disabled) {
+        background-color: ${colors.primary[700]} !important;
+      }
+      
+      button:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+      
+      ::selection {
+        background-color: ${colors.primary[600]}4D;
+        color: white;
+      }
+      
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: ${colors.gray[900]};
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: ${colors.gray[700]};
+        border-radius: 4px;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background: ${colors.gray[600]};
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+  return null;
+}
+
+// public/App.tsx
+var jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
+function App() {
+  const [mode, setMode] = import_react4.useState("search");
+  const [documents, setDocuments] = import_react4.useState([]);
+  const loadDocuments = async () => {
+    try {
+      const response = await fetch("/api/scripts");
+      const data = await response.json();
+      setDocuments(data);
+    } catch (error) {
+      console.error("Failed to load documents:", error);
+    }
+  };
+  import_react4.useEffect(() => {
+    loadDocuments();
+  }, []);
+  const handleSearch = async (query) => {
+    const response = await fetch("/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query })
+    });
+    const data = await response.json();
+    return data.results || [];
+  };
+  const handleUpload = async (title, content) => {
+    const response = await fetch("/api/scripts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, content })
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  };
+  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(jsx_dev_runtime9.Fragment, {
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(GlobalStyles, {}, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Layout, {
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Navigation, {
+            activeMode: mode,
+            onModeChange: setMode
+          }, undefined, false, undefined, this),
+          mode === "search" ? /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Search, {
+            onSearch: handleSearch
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Upload, {
+            documents,
+            onUpload: handleUpload,
+            onDocumentsChange: loadDocuments
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+
+// public/index.tsx
+var jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
 var root = import_client.createRoot(document.getElementById("root"));
-root.render(/* @__PURE__ */ jsx_dev_runtime.jsxDEV(App, {}, undefined, false, undefined, this));
+root.render(/* @__PURE__ */ jsx_dev_runtime10.jsxDEV(App, {}, undefined, false, undefined, this));
