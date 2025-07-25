@@ -12,3 +12,16 @@ export interface Document {
 }
 
 export type UploadStatus = "idle" | "success" | "error";
+
+export interface UploadResponse {
+  success: boolean;
+  scriptId?: number;
+  chunksCreated?: number;
+  totalChunks?: number;
+  errors?: string[];
+  error?: string;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+}

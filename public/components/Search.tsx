@@ -48,7 +48,7 @@ export function Search({ onSearch }: SearchProps) {
           <Input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
             placeholder="Search for content..."
             disabled={loading}
             icon={SearchIcon}

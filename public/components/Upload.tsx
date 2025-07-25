@@ -4,11 +4,11 @@ import { Button } from './Button';
 import { Input } from './Input';
 import { TextArea } from './TextArea';
 import { Alert } from './Alert';
-import { Document, UploadStatus } from '../types';
+import type { Document, UploadStatus, UploadResponse } from '../types';
 
 interface UploadProps {
   documents: Document[];
-  onUpload: (title: string, content: string) => Promise<{ success: boolean; chunksCreated?: number; totalChunks?: number; error?: string }>;
+  onUpload: (title: string, content: string) => Promise<UploadResponse>;
   onDocumentsChange: () => void;
 }
 
@@ -71,7 +71,7 @@ export function Upload({ documents, onUpload, onDocumentsChange }: UploadProps) 
           label="Document Title"
           type="text"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
           placeholder="Enter a title for your document"
           disabled={loading}
         />
@@ -79,7 +79,7 @@ export function Upload({ documents, onUpload, onDocumentsChange }: UploadProps) 
         <TextArea
           label="Content"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
           placeholder="Paste your text content here..."
           disabled={loading}
         />
@@ -91,7 +91,7 @@ export function Upload({ documents, onUpload, onDocumentsChange }: UploadProps) 
       
       {uploadProgress && (
         <div style={{ marginTop: spacing.lg }}>
-          <Alert variant={uploadStatus}>
+          <Alert variant={uploadStatus === "idle" ? "info" : uploadStatus}>
             {uploadProgress}
           </Alert>
         </div>

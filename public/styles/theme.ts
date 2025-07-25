@@ -1,5 +1,27 @@
 // Untitled UI Dark Theme Colors
-export const colors = {
+type ColorShades = {
+  25: string;
+  50: string;
+  100: string;
+  200: string;
+  300: string;
+  400: string;
+  500: string;
+  600: string;
+  700: string;
+  800: string;
+  900: string;
+  950?: string;
+};
+
+type Colors = {
+  gray: ColorShades;
+  primary: Omit<ColorShades, '950'>;
+  error: Omit<ColorShades, '950'>;
+  success: Omit<ColorShades, '950'>;
+};
+
+export const colors: Colors = {
   gray: {
     25: '#FCFCFD',
     50: '#F9FAFB',
@@ -55,7 +77,17 @@ export const colors = {
   }
 };
 
-export const spacing = {
+type Spacing = {
+  xs: string;
+  sm: string;
+  md: string;
+  lg: string;
+  xl: string;
+  xxl: string;
+  xxxl: string;
+};
+
+export const spacing: Spacing = {
   xs: '4px',
   sm: '8px',
   md: '12px',
@@ -65,7 +97,12 @@ export const spacing = {
   xxxl: '48px',
 };
 
-export const typography = {
+type Typography = {
+  fontFamily: string;
+  fontFamilyMono: string;
+};
+
+export const typography: Typography = {
   fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   fontFamilyMono: "'SF Mono', Monaco, Inconsolata, 'Fira Code', monospace",
 };

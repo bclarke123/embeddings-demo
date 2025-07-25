@@ -4,16 +4,19 @@ import { Navigation } from './components/Navigation';
 import { Search } from './components/Search';
 import { Upload } from './components/Upload';
 import { GlobalStyles } from './styles/GlobalStyles';
-import { Document, SearchResult } from './types';
+import type { Document, SearchResult, UploadResponse, SearchResponse } from './types';
 
 export function App() {
   const [mode, setMode] = useState<'search' | 'upload'>('search');
   const [documents, setDocuments] = useState<Document[]>([]);
 
-  const loadDocuments = async () => {
+  const loadDocuments = async (): Promise<void> => {
     try {
       const response = await fetch('/api/scripts');
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data: Document[] = await response.json();
       setDocuments(data);
     } catch (error) {
       console.error('Failed to load documents:', error);
@@ -30,11 +33,16 @@ export function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
     });
-    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data: SearchResponse = await response.json();
     return data.results || [];
   };
 
-  const handleUpload = async (title: string, content: string) => {
+  const handleUpload = async (title: string, content: string): Promise<UploadResponse> => {
     const response = await fetch('/api/scripts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -42,11 +50,11 @@ export function App() {
     });
     
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData: { error?: string } = await response.json();
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
     
-    return await response.json();
+    return await response.json() as UploadResponse;
   };
 
   return (
