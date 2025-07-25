@@ -1,5 +1,10 @@
-import { Context, Next } from "hono";
-import { ValidationError } from "./error-handler";
+import type { Context, Next } from "hono";
+
+interface ExtendedContext extends Context {
+  get(key: 'validatedBody'): { title?: string; content?: string; query?: string; limit?: number };
+  get(key: 'validatedId'): number;
+  get(key: string): unknown;
+}
 
 export interface ValidationSchema {
   title?: {
@@ -25,7 +30,7 @@ export interface ValidationSchema {
 }
 
 export function validateBody(schema: ValidationSchema) {
-  return async (c: Context, next: Next) => {
+  return async (c: ExtendedContext, next: Next) => {
     const body = await c.req.json().catch(() => null);
     
     if (!body || typeof body !== 'object') {
@@ -105,7 +110,7 @@ export function validateBody(schema: ValidationSchema) {
 }
 
 export function validateParams(paramName: string, isNumeric = false) {
-  return async (c: Context, next: Next) => {
+  return async (c: ExtendedContext, next: Next) => {
     const param = c.req.param(paramName);
     
     if (!param) {

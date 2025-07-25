@@ -35,7 +35,7 @@ export async function errorHandler(c: Context, next: Next) {
       return c.json({
         error: error.message,
         code: error.code
-      }, error.status);
+      }, error.status as 400 | 429);
     }
 
     if (error instanceof Error && (error as AppError).status) {
@@ -43,7 +43,7 @@ export async function errorHandler(c: Context, next: Next) {
       return c.json({
         error: appError.message,
         code: appError.code || "UNKNOWN_ERROR"
-      }, appError.status);
+      }, (appError.status || 500) as 400 | 500);
     }
 
     // Default server error

@@ -64,7 +64,11 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   for (let i = 0; i < texts.length; i++) {
     try {
       console.log(`Processing chunk ${i + 1}/${texts.length}...`);
-      const embedding = await generateEmbedding(texts[i]!);
+      const text = texts[i];
+      if (!text) {
+        throw new Error(`Text at index ${i} is undefined`);
+      }
+      const embedding = await generateEmbedding(text);
       embeddings.push(embedding);
 
       // Add delay to avoid hitting rate limits

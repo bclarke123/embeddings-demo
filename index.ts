@@ -4,16 +4,18 @@ import { logger } from "hono/logger";
 import { serveStatic } from "hono/bun";
 import { scriptRoutes } from "./src/api/scripts";
 import { searchRoutes } from "./src/api/search";
+import { healthRoutes } from "./src/api/health";
 import { generalRateLimit } from "./src/middleware/rate-limit";
 
 const app = new Hono();
 
 app.use("*", logger());
 app.use("/api/*", cors());
-// app.use("/api/*", generalRateLimit); // Temporarily disabled for testing
+app.use("/api/*", generalRateLimit);
 
 app.route("/api/scripts", scriptRoutes);
 app.route("/api/search", searchRoutes);
+app.route("/health", healthRoutes);
 
 app.onError(async (err, c) => {
   console.error("API Error:", err);

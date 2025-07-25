@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { colors, spacing } from '../styles/theme';
 import { Button } from './Button';
 import { Input } from './Input';
-import { SearchResult } from '../types';
+import type { SearchResult } from '../types';
 
 interface SearchProps {
   onSearch: (query: string) => Promise<SearchResult[]>;
