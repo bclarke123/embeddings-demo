@@ -15876,7 +15876,7 @@ var require_jsx_dev_runtime = __commonJS((exports, module) => {
 var import_client = __toESM(require_client(), 1);
 
 // public/App.tsx
-var import_react4 = __toESM(require_react(), 1);
+var import_react5 = __toESM(require_react(), 1);
 
 // public/styles/theme.ts
 var colors = {
@@ -16381,7 +16381,7 @@ var styles3 = {
 };
 
 // public/components/Upload.tsx
-var import_react2 = __toESM(require_react(), 1);
+var import_react3 = __toESM(require_react(), 1);
 
 // public/components/TextArea.tsx
 var jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
@@ -16458,14 +16458,300 @@ function Alert({ variant, children }) {
   }, undefined, false, undefined, this);
 }
 
-// public/components/Upload.tsx
+// public/components/BatchUpload.tsx
+var import_react2 = __toESM(require_react(), 1);
 var jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
-function Upload({ documents, onUpload, onDocumentsChange }) {
-  const [title, setTitle] = import_react2.useState("");
-  const [content, setContent] = import_react2.useState("");
-  const [loading, setLoading] = import_react2.useState(false);
-  const [uploadProgress, setUploadProgress] = import_react2.useState("");
+function BatchUpload({ onBatchUpload, onUploadComplete }) {
+  const fileInputRef = import_react2.useRef(null);
+  const [selectedFiles, setSelectedFiles] = import_react2.useState([]);
+  const [uploading, setUploading] = import_react2.useState(false);
   const [uploadStatus, setUploadStatus] = import_react2.useState("idle");
+  const [uploadMessage, setUploadMessage] = import_react2.useState("");
+  const [uploadProgress, setUploadProgress] = import_react2.useState(0);
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    setSelectedFiles(files);
+    setUploadStatus("idle");
+    setUploadMessage("");
+  };
+  const readFileAsText = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader;
+      reader.onload = (e) => resolve(e.target?.result);
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  };
+  const handleBatchUpload = async () => {
+    if (selectedFiles.length === 0)
+      return;
+    setUploading(true);
+    setUploadStatus("idle");
+    setUploadProgress(0);
+    try {
+      const filesData = [];
+      for (let i = 0;i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        setUploadMessage(`Reading ${file.name}...`);
+        try {
+          const content = await readFileAsText(file);
+          filesData.push({
+            title: file.name,
+            content
+          });
+        } catch (error) {
+          console.error(`Failed to read ${file.name}:`, error);
+        }
+        setUploadProgress((i + 1) / selectedFiles.length * 50);
+      }
+      if (filesData.length === 0) {
+        throw new Error("No files could be read");
+      }
+      const batchSize = 10;
+      const totalBatches = Math.ceil(filesData.length / batchSize);
+      let totalSuccess = 0;
+      let totalFailed = 0;
+      for (let i = 0;i < totalBatches; i++) {
+        const batch = filesData.slice(i * batchSize, (i + 1) * batchSize);
+        setUploadMessage(`Uploading batch ${i + 1}/${totalBatches}...`);
+        try {
+          const result = await onBatchUpload(batch);
+          if (result.results) {
+            result.results.forEach((fileResult) => {
+              if (fileResult.success) {
+                totalSuccess++;
+              } else {
+                totalFailed++;
+              }
+            });
+          }
+        } catch (error) {
+          console.error("Batch upload failed:", error);
+          totalFailed += batch.length;
+        }
+        setUploadProgress(50 + (i + 1) / totalBatches * 50);
+      }
+      setUploadStatus(totalFailed === 0 ? "success" : "error");
+      setUploadMessage(`Upload complete! ${totalSuccess} succeeded, ${totalFailed} failed out of ${filesData.length} files.`);
+      setSelectedFiles([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      onUploadComplete();
+      setTimeout(() => {
+        setUploadStatus("idle");
+        setUploadMessage("");
+      }, 5000);
+    } catch (error) {
+      console.error("Batch upload error:", error);
+      setUploadStatus("error");
+      setUploadMessage(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+    style: styles4.container,
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("h3", {
+        style: styles4.title,
+        children: "Batch Upload Files"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("p", {
+        style: styles4.description,
+        children: "Select multiple text files to upload them all at once. Supported formats: .txt, .md, .js, .ts, .json, .html, .css"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+        style: styles4.uploadArea,
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("input", {
+            ref: fileInputRef,
+            type: "file",
+            multiple: true,
+            accept: ".txt,.md,.js,.ts,.jsx,.tsx,.json,.html,.css,.xml,.yml,.yaml",
+            onChange: handleFileSelect,
+            style: styles4.fileInput,
+            disabled: uploading
+          }, undefined, false, undefined, this),
+          selectedFiles.length > 0 && /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+            style: styles4.selectedFiles,
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("p", {
+                style: styles4.selectedCount,
+                children: [
+                  selectedFiles.length,
+                  " file",
+                  selectedFiles.length !== 1 ? "s" : "",
+                  " selected"
+                ]
+              }, undefined, true, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+                style: styles4.fileList,
+                children: [
+                  selectedFiles.slice(0, 5).map((file, index) => /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+                    style: styles4.fileName,
+                    children: [
+                      file.name,
+                      " (",
+                      (file.size / 1024).toFixed(1),
+                      " KB)"
+                    ]
+                  }, index, true, undefined, this)),
+                  selectedFiles.length > 5 && /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+                    style: styles4.moreFiles,
+                    children: [
+                      "...and ",
+                      selectedFiles.length - 5,
+                      " more"
+                    ]
+                  }, undefined, true, undefined, this)
+                ]
+              }, undefined, true, undefined, this)
+            ]
+          }, undefined, true, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Button, {
+            onClick: handleBatchUpload,
+            disabled: selectedFiles.length === 0 || uploading,
+            loading: uploading,
+            style: { marginTop: spacing.lg },
+            children: uploading ? "Uploading..." : `Upload ${selectedFiles.length} Files`
+          }, undefined, false, undefined, this),
+          uploading && uploadProgress > 0 && /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+            style: styles4.progressContainer,
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+                style: styles4.progressBar,
+                children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+                  style: {
+                    ...styles4.progressFill,
+                    width: `${uploadProgress}%`
+                  }
+                }, undefined, false, undefined, this)
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("span", {
+                style: styles4.progressText,
+                children: [
+                  Math.round(uploadProgress),
+                  "%"
+                ]
+              }, undefined, true, undefined, this)
+            ]
+          }, undefined, true, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      uploadMessage && /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+        style: { marginTop: spacing.lg },
+        children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Alert, {
+          variant: uploadStatus,
+          children: uploadMessage
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+var styles4 = {
+  container: {
+    width: "100%",
+    marginTop: spacing.xxl,
+    padding: spacing.xl,
+    border: `1px solid ${colors.gray[800]}`,
+    borderRadius: "8px",
+    background: colors.gray[900]
+  },
+  title: {
+    fontSize: "18px",
+    fontWeight: 600,
+    color: colors.gray[100],
+    margin: `0 0 ${spacing.sm} 0`
+  },
+  description: {
+    fontSize: "14px",
+    color: colors.gray[400],
+    margin: `0 0 ${spacing.lg} 0`
+  },
+  uploadArea: {
+    display: "flex",
+    flexDirection: "column",
+    gap: spacing.md
+  },
+  fileInput: {
+    fontSize: "14px",
+    color: colors.gray[300],
+    background: colors.gray[800],
+    border: `1px solid ${colors.gray[700]}`,
+    borderRadius: "6px",
+    padding: spacing.md,
+    cursor: "pointer",
+    transition: "all 0.2s",
+    "&:hover": {
+      borderColor: colors.gray[600]
+    },
+    "&:disabled": {
+      opacity: 0.5,
+      cursor: "not-allowed"
+    }
+  },
+  selectedFiles: {
+    background: colors.gray[800],
+    borderRadius: "6px",
+    padding: spacing.md
+  },
+  selectedCount: {
+    fontSize: "14px",
+    fontWeight: 500,
+    color: colors.gray[200],
+    margin: `0 0 ${spacing.sm} 0`
+  },
+  fileList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: spacing.xs
+  },
+  fileName: {
+    fontSize: "13px",
+    color: colors.gray[400],
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  },
+  moreFiles: {
+    fontSize: "13px",
+    color: colors.gray[500],
+    fontStyle: "italic"
+  },
+  progressContainer: {
+    display: "flex",
+    alignItems: "center",
+    gap: spacing.sm
+  },
+  progressBar: {
+    flex: 1,
+    height: "6px",
+    background: colors.gray[800],
+    borderRadius: "3px",
+    overflow: "hidden"
+  },
+  progressFill: {
+    height: "100%",
+    background: colors.primary[500],
+    transition: "width 0.3s ease"
+  },
+  progressText: {
+    fontSize: "13px",
+    color: colors.gray[400],
+    minWidth: "40px"
+  }
+};
+
+// public/components/Upload.tsx
+var jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
+function Upload({ documents, onUpload, onBatchUpload, onDocumentsChange }) {
+  const [title, setTitle] = import_react3.useState("");
+  const [content, setContent] = import_react3.useState("");
+  const [loading, setLoading] = import_react3.useState(false);
+  const [uploadProgress, setUploadProgress] = import_react3.useState("");
+  const [uploadStatus, setUploadStatus] = import_react3.useState("idle");
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) {
@@ -16507,14 +16793,14 @@ function Upload({ documents, onUpload, onDocumentsChange }) {
       setLoading(false);
     }
   };
-  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
-    style: styles4.container,
+  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("div", {
+    style: styles5.container,
     children: [
-      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("form", {
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("form", {
         onSubmit: handleUpload,
-        style: styles4.uploadForm,
+        style: styles5.uploadForm,
         children: [
-          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Input, {
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Input, {
             label: "Document Title",
             type: "text",
             value: title,
@@ -16522,46 +16808,50 @@ function Upload({ documents, onUpload, onDocumentsChange }) {
             placeholder: "Enter a title for your document",
             disabled: loading
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(TextArea, {
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(TextArea, {
             label: "Content",
             value: content,
             onChange: (e) => setContent(e.target.value),
             placeholder: "Paste your text content here...",
             disabled: loading
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Button, {
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Button, {
             type: "submit",
             loading,
             children: loading ? "Processing..." : "Upload Document"
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      uploadProgress && /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+      uploadProgress && /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("div", {
         style: { marginTop: spacing.lg },
-        children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Alert, {
+        children: /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Alert, {
           variant: uploadStatus === "idle" ? "info" : uploadStatus,
           children: uploadProgress
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
-        style: styles4.documentsSection,
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(BatchUpload, {
+        onBatchUpload,
+        onUploadComplete: onDocumentsChange
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("div", {
+        style: styles5.documentsSection,
         children: [
-          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("h2", {
-            style: styles4.sectionTitle,
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("h2", {
+            style: styles5.sectionTitle,
             children: "Uploaded Documents"
           }, undefined, false, undefined, this),
-          documents.length > 0 ? /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
-            style: styles4.documentsList,
-            children: documents.map((doc) => /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
-              style: styles4.documentItem,
-              children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
+          documents.length > 0 ? /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("div", {
+            style: styles5.documentsList,
+            children: documents.map((doc) => /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("div", {
+              style: styles5.documentItem,
+              children: /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("div", {
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("h4", {
-                    style: styles4.documentTitle,
+                  /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("h4", {
+                    style: styles5.documentTitle,
                     children: doc.title
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("p", {
-                    style: styles4.documentDate,
+                  /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("p", {
+                    style: styles5.documentDate,
                     children: [
                       "Uploaded ",
                       new Date(doc.uploadedAt).toLocaleDateString("en-US", {
@@ -16574,15 +16864,15 @@ function Upload({ documents, onUpload, onDocumentsChange }) {
                 ]
               }, undefined, true, undefined, this)
             }, doc.id, false, undefined, this))
-          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("div", {
-            style: styles4.emptyDocuments,
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("div", {
+            style: styles5.emptyDocuments,
             children: [
-              /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("p", {
-                style: styles4.emptyStateText,
+              /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("p", {
+                style: styles5.emptyStateText,
                 children: "No documents uploaded yet"
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("p", {
-                style: styles4.emptyStateSubtext,
+              /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("p", {
+                style: styles5.emptyStateSubtext,
                 children: "Upload your first document to get started"
               }, undefined, false, undefined, this)
             ]
@@ -16592,7 +16882,7 @@ function Upload({ documents, onUpload, onDocumentsChange }) {
     ]
   }, undefined, true, undefined, this);
 }
-var styles4 = {
+var styles5 = {
   container: {
     width: "100%"
   },
@@ -16654,9 +16944,9 @@ var styles4 = {
 };
 
 // public/styles/GlobalStyles.tsx
-var import_react3 = __toESM(require_react(), 1);
+var import_react4 = __toESM(require_react(), 1);
 function GlobalStyles() {
-  import_react3.default.useEffect(() => {
+  import_react4.default.useEffect(() => {
     const style = document.createElement("style");
     style.innerHTML = `
       * {
@@ -16714,10 +17004,10 @@ function GlobalStyles() {
 }
 
 // public/App.tsx
-var jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
 function App() {
-  const [mode, setMode] = import_react4.useState("search");
-  const [documents, setDocuments] = import_react4.useState([]);
+  const [mode, setMode] = import_react5.useState("search");
+  const [documents, setDocuments] = import_react5.useState([]);
   const loadDocuments = async () => {
     try {
       const response = await fetch("/api/scripts");
@@ -16730,7 +17020,7 @@ function App() {
       console.error("Failed to load documents:", error);
     }
   };
-  import_react4.useEffect(() => {
+  import_react5.useEffect(() => {
     loadDocuments();
   }, []);
   const handleSearch = async (query) => {
@@ -16757,20 +17047,33 @@ function App() {
     }
     return await response.json();
   };
-  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(jsx_dev_runtime9.Fragment, {
+  const handleBatchUpload = async (files) => {
+    const response = await fetch("/api/scripts/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ files })
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  };
+  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(jsx_dev_runtime10.Fragment, {
     children: [
-      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(GlobalStyles, {}, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Layout, {
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(GlobalStyles, {}, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Layout, {
         children: [
-          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Navigation, {
+          /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Navigation, {
             activeMode: mode,
             onModeChange: setMode
           }, undefined, false, undefined, this),
-          mode === "search" ? /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Search, {
+          mode === "search" ? /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Search, {
             onSearch: handleSearch
-          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Upload, {
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Upload, {
             documents,
             onUpload: handleUpload,
+            onBatchUpload: handleBatchUpload,
             onDocumentsChange: loadDocuments
           }, undefined, false, undefined, this)
         ]
@@ -16780,6 +17083,6 @@ function App() {
 }
 
 // public/index.tsx
-var jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
 var root = import_client.createRoot(document.getElementById("root"));
-root.render(/* @__PURE__ */ jsx_dev_runtime10.jsxDEV(App, {}, undefined, false, undefined, this));
+root.render(/* @__PURE__ */ jsx_dev_runtime11.jsxDEV(App, {}, undefined, false, undefined, this));

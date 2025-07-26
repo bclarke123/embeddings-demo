@@ -4,15 +4,17 @@ import { Button } from './Button';
 import { Input } from './Input';
 import { TextArea } from './TextArea';
 import { Alert } from './Alert';
+import { BatchUpload } from './BatchUpload';
 import type { Document, UploadStatus, UploadResponse } from '../types';
 
 interface UploadProps {
   documents: Document[];
   onUpload: (title: string, content: string) => Promise<UploadResponse>;
+  onBatchUpload: (files: Array<{ title: string; content: string }>) => Promise<any>;
   onDocumentsChange: () => void;
 }
 
-export function Upload({ documents, onUpload, onDocumentsChange }: UploadProps) {
+export function Upload({ documents, onUpload, onBatchUpload, onDocumentsChange }: UploadProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -96,6 +98,11 @@ export function Upload({ documents, onUpload, onDocumentsChange }: UploadProps) 
           </Alert>
         </div>
       )}
+
+      <BatchUpload 
+        onBatchUpload={onBatchUpload}
+        onUploadComplete={onDocumentsChange}
+      />
 
       <div style={styles.documentsSection}>
         <h2 style={styles.sectionTitle}>Uploaded Documents</h2>

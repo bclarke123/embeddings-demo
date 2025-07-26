@@ -57,6 +57,21 @@ export function App() {
     return await response.json() as UploadResponse;
   };
 
+  const handleBatchUpload = async (files: Array<{ title: string; content: string }>) => {
+    const response = await fetch('/api/scripts/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files }),
+    });
+    
+    if (!response.ok) {
+      const errorData: { error?: string } = await response.json();
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  };
+
   return (
     <>
       <GlobalStyles />
@@ -68,6 +83,7 @@ export function App() {
           <Upload 
             documents={documents} 
             onUpload={handleUpload}
+            onBatchUpload={handleBatchUpload}
             onDocumentsChange={loadDocuments}
           />
         )}
