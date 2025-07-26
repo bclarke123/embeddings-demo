@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { scripts, scriptChunks } from "../db/schema";
-import { chunkText } from "../lib/text-chunker";
+import { TextChunker, type ChunkOptions } from "../lib/text-chunker";
 import { eq } from "drizzle-orm";
 import { Logger } from "../lib/logger";
 import { AppMetrics, MetricsCollector } from "../lib/metrics";
@@ -38,7 +38,13 @@ export interface ScriptSummary {
 }
 
 export class ScriptService {
-  async createScript(request: CreateScriptRequest): Promise<CreateScriptResponse> {
+  private chunker: TextChunker;
+
+  constructor(chunkOptions?: ChunkOptions) {
+    this.chunker = new TextChunker(chunkOptions);
+  }
+
+  async createScript(request: CreateScriptRequest, chunkOptions?: ChunkOptions): Promise<CreateScriptResponse> {
     const startTime = Date.now();
     const { title, content } = request;
 
@@ -59,7 +65,7 @@ export class ScriptService {
       
       // Chunk the text
       Logger.debug("Chunking text");
-      const chunks = chunkText(content);
+      const chunks = this.chunker.chunkText(content, chunkOptions);
       Logger.info("Text chunked", { 
         scriptId: script.id,
         chunksCount: chunks.length 
