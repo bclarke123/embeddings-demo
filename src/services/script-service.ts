@@ -5,11 +5,10 @@ import { eq } from "drizzle-orm";
 import { Logger } from "../lib/logger";
 import { AppMetrics, MetricsCollector } from "../lib/metrics";
 import { batchEmbeddingService } from "../lib/batch-embedding";
+import type { ScriptCreateInput } from "../lib/schemas";
 
-export interface CreateScriptRequest {
-  title: string;
-  content: string;
-}
+// Use Zod-generated type instead of custom interface
+export type CreateScriptRequest = ScriptCreateInput;
 
 export interface CreateScriptResponse {
   success: boolean;
@@ -17,6 +16,19 @@ export interface CreateScriptResponse {
   chunksCreated: number;
   totalChunks: number;
   errors?: string[];
+}
+
+export interface BatchUploadResponse {
+  totalFiles: number;
+  successfulUploads: number;
+  failedUploads: number;
+  results: Array<{
+    filename: string;
+    success: boolean;
+    scriptId?: number;
+    chunksCreated?: number;
+    error?: string;
+  }>;
 }
 
 export interface ScriptSummary {
@@ -231,5 +243,70 @@ export class ScriptService {
       Logger.error("Failed to delete script", error as Error, { scriptId: id });
       throw error;
     }
+  }
+
+  async batchUpload(files: Array<{ title: string; content: string }>): Promise<BatchUploadResponse> {
+    Logger.info("Starting batch upload", { fileCount: files.length });
+    const startTime = Date.now();
+    
+    const results: BatchUploadResponse['results'] = [];
+    let successfulUploads = 0;
+    let failedUploads = 0;
+
+    // Process files sequentially to avoid overwhelming the system
+    for (const file of files) {
+      try {
+        Logger.debug(`Processing file: ${file.title}`);
+        
+        const result = await this.createScript({
+          title: file.title,
+          content: file.content
+        });
+        
+        if (result.success) {
+          successfulUploads++;
+          results.push({
+            filename: file.title,
+            success: true,
+            scriptId: result.scriptId,
+            chunksCreated: result.chunksCreated
+          });
+        } else {
+          failedUploads++;
+          results.push({
+            filename: file.title,
+            success: false,
+            error: result.errors?.join(', ') || 'Unknown error'
+          });
+        }
+      } catch (error) {
+        failedUploads++;
+        Logger.error(`Failed to upload file: ${file.title}`, error as Error);
+        results.push({
+          filename: file.title,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+      
+      // Small delay between files to avoid rate limiting
+      await Bun.sleep(500);
+    }
+
+    const response: BatchUploadResponse = {
+      totalFiles: files.length,
+      successfulUploads,
+      failedUploads,
+      results
+    };
+
+    Logger.info("Batch upload complete", {
+      totalFiles: files.length,
+      successfulUploads,
+      failedUploads,
+      duration: Date.now() - startTime
+    });
+
+    return response;
   }
 }

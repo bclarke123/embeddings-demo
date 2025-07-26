@@ -1,8 +1,10 @@
 import { Hono } from "hono";
-import { validateBody, validateParams } from "../middleware/validation";
 import { uploadRateLimit } from "../middleware/rate-limit";
 import { ScriptService } from "../services/script-service";
 import { SearchService } from "../services/search-service";
+import { zodValidateBody, zodValidateParams, getValidatedBody, getValidatedParams } from "../middleware/zod-validation";
+import { scriptCreateSchema, scriptIdParamSchema, batchUploadSchema } from "../lib/schemas";
+import type { ScriptCreateInput, ScriptIdParam, BatchUploadInput } from "../lib/schemas";
 
 const scriptService = new ScriptService();
 const searchService = new SearchService();
@@ -11,15 +13,11 @@ export const scriptRoutes = new Hono();
 
 scriptRoutes.post("/", 
   uploadRateLimit,
-  validateBody({
-    title: { required: true, minLength: 1, maxLength: 200 },
-    content: { required: true, minLength: 10, maxLength: 1000000 }
-  }),
+  zodValidateBody(scriptCreateSchema),
   async (c) => {
-    const validatedBody = c.get('validatedBody') as { title: string; content: string };
-    const { title, content } = validatedBody;
+    const body = getValidatedBody<ScriptCreateInput>(c);
     
-    const result = await scriptService.createScript({ title, content });
+    const result = await scriptService.createScript(body);
     
     // Invalidate search cache since new content was added
     await searchService.invalidateCache([result.scriptId]);
@@ -33,13 +31,34 @@ scriptRoutes.get("/", async (c) => {
 });
 
 scriptRoutes.delete("/:id", 
-  validateParams("id", true),
+  zodValidateParams(scriptIdParamSchema),
   async (c) => {
-    const id = c.get('validatedId') as number;
+    const params = getValidatedParams<ScriptIdParam>(c);
     
     // Invalidate search cache before deleting
-    await searchService.invalidateCache([id]);
+    await searchService.invalidateCache([params.id]);
     
-    await scriptService.deleteScript(id);
+    await scriptService.deleteScript(params.id);
     return c.json({ success: true });
+  });
+
+// Batch upload endpoint
+scriptRoutes.post("/batch",
+  uploadRateLimit,
+  zodValidateBody(batchUploadSchema),
+  async (c) => {
+    const body = getValidatedBody<BatchUploadInput>(c);
+    
+    const result = await scriptService.batchUpload(body.files);
+    
+    // Invalidate search cache for all uploaded scripts
+    const uploadedScriptIds = result.results
+      .filter(r => r.success && r.scriptId)
+      .map(r => r.scriptId!);
+    
+    if (uploadedScriptIds.length > 0) {
+      await searchService.invalidateCache(uploadedScriptIds);
+    }
+    
+    return c.json(result);
   });

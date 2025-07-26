@@ -3,7 +3,7 @@ export interface ChunkOptions {
   overlap: number;
 }
 
-export function chunkText(text: string, options: ChunkOptions = { chunkSize: 1500, overlap: 200 }): string[] {
+export function chunkText(text: string, options: ChunkOptions = { chunkSize: 800, overlap: 100 }): string[] {
   const { chunkSize, overlap } = options;
   const chunks: string[] = [];
   

@@ -1,7 +1,9 @@
 import { Hono } from "hono";
-import { validateBody } from "../middleware/validation";
 import { searchRateLimit } from "../middleware/rate-limit";
 import { SearchService } from "../services/search-service";
+import { zodValidateBody, getValidatedBody } from "../middleware/zod-validation";
+import { searchRequestSchema } from "../lib/schemas";
+import type { SearchRequestInput } from "../lib/schemas";
 
 const searchService = new SearchService();
 
@@ -9,15 +11,11 @@ export const searchRoutes = new Hono();
 
 searchRoutes.post("/",
   searchRateLimit,
-  validateBody({
-    query: { required: true, minLength: 1, maxLength: 500 },
-    limit: { min: 1, max: 50, default: 10 }
-  }),
+  zodValidateBody(searchRequestSchema),
   async (c) => {
-    const validatedBody = c.get('validatedBody') as { query: string; limit: number };
-    const { query, limit } = validatedBody;
+    const body = getValidatedBody<SearchRequestInput>(c);
     
-    const result = await searchService.search({ query, limit });
+    const result = await searchService.search(body);
     
     return c.json(result);
   });

@@ -10,9 +10,15 @@ interface RateLimitOptions {
 
 export function rateLimit(options: RateLimitOptions) {
   return async (c: Context, next: Next) => {
+    // Better key generation for development and production
+    const ip = c.req.header('x-forwarded-for') || 
+              c.req.header('x-real-ip') || 
+              c.req.header('cf-connecting-ip') ||
+              '127.0.0.1';
+    
     const key = options.keyGenerator 
       ? options.keyGenerator(c)
-      : `ratelimit:${c.req.header('x-forwarded-for') || 'unknown'}`;
+      : `ratelimit:${ip}`;
     
     const current = await redis.incr(key);
     
@@ -39,18 +45,18 @@ export function rateLimit(options: RateLimitOptions) {
   };
 }
 
-// Predefined rate limiters
+// Predefined rate limiters with more reasonable limits
 export const generalRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 100, // 100 requests per window
+  maxRequests: 500, // 500 requests per window (much more generous)
 });
 
 export const uploadRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  maxRequests: 10, // 10 uploads per hour
+  maxRequests: 25, // 25 uploads per hour (increased from 10)
 });
 
 export const searchRateLimit = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  maxRequests: 30, // 30 searches per minute
+  maxRequests: 100, // 100 searches per minute (increased from 30)
 });

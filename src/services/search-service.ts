@@ -6,11 +6,10 @@ import { CacheManager } from "../lib/cache";
 import { Logger } from "../lib/logger";
 import { AppMetrics, MetricsCollector } from "../lib/metrics";
 import { batchEmbeddingService } from "../lib/batch-embedding";
+import type { SearchRequestInput } from "../lib/schemas";
 
-export interface SearchRequest {
-  query: string;
-  limit: number;
-}
+// Use Zod-generated type instead of custom interface
+export type SearchRequest = SearchRequestInput;
 
 export interface SearchResult {
   content: string;

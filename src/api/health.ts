@@ -5,6 +5,9 @@ import { redis } from "../lib/redis";
 import { Logger } from "../lib/logger";
 import { MetricsCollector } from "../lib/metrics";
 import { SearchService } from "../services/search-service";
+import { zodValidateQuery, getValidatedQuery } from "../middleware/zod-validation";
+import { healthMetricsQuerySchema } from "../lib/schemas";
+import type { HealthMetricsQuery } from "../lib/schemas";
 
 const searchService = new SearchService();
 
@@ -183,14 +186,16 @@ healthRoutes.get("/detailed", async (c) => {
 });
 
 // Metrics endpoint
-healthRoutes.get("/metrics", async (c) => {
-  Logger.debug("Metrics endpoint requested");
+healthRoutes.get("/metrics", 
+  zodValidateQuery(healthMetricsQuerySchema),
+  async (c) => {
+    Logger.debug("Metrics endpoint requested");
 
-  const since = c.req.query('since');
-  const sinceDate = since ? new Date(since) : new Date(Date.now() - 60 * 60 * 1000); // Default: last hour
-  
-  const metrics = MetricsCollector.getMetrics(sinceDate);
-  const cacheStats = await searchService.getCacheStats();
+    const query = getValidatedQuery<HealthMetricsQuery>(c);
+    const sinceDate = query.since;
+    
+    const metrics = MetricsCollector.getMetrics(sinceDate);
+    const cacheStats = await searchService.getCacheStats();
 
   // Aggregate common metrics
   const aggregated = {
