@@ -16253,15 +16253,32 @@ function Search({ onSearch }) {
                     children: result.scriptTitle
                   }, undefined, false, undefined, this),
                   /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-                    style: styles3.badge,
-                    children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
-                      style: styles3.badgeText,
-                      children: [
-                        (result.similarity * 100).toFixed(1),
-                        "% match"
-                      ]
-                    }, undefined, true, undefined, this)
-                  }, undefined, false, undefined, this)
+                    style: { display: "flex", gap: spacing.sm, alignItems: "center" },
+                    children: [
+                      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+                        style: styles3.badge,
+                        children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
+                          style: styles3.badgeText,
+                          children: [
+                            (result.avgSimilarity * 100).toFixed(1),
+                            "% match"
+                          ]
+                        }, undefined, true, undefined, this)
+                      }, undefined, false, undefined, this),
+                      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+                        style: { ...styles3.badge, background: colors.gray[800], border: `1px solid ${colors.gray[700]}` },
+                        children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("span", {
+                          style: { ...styles3.badgeText, color: colors.gray[300] },
+                          children: [
+                            result.chunkIndices.length,
+                            " chunk",
+                            result.chunkIndices.length > 1 ? "s" : "",
+                            " from script"
+                          ]
+                        }, undefined, true, undefined, this)
+                      }, undefined, false, undefined, this)
+                    ]
+                  }, undefined, true, undefined, this)
                 ]
               }, undefined, true, undefined, this)
             }, undefined, false, undefined, this),

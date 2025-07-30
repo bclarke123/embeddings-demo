@@ -16,11 +16,20 @@ export interface SearchResult {
   scriptTitle: string;
   similarity: number;
   scriptId: number;
+  chunkIndex: number;
+}
+
+export interface GroupedSearchResult {
+  scriptId: number;
+  scriptTitle: string;
+  avgSimilarity: number;
+  content: string;
+  chunkIndices: number[];
 }
 
 export interface SearchResponse {
   query: string;
-  results: SearchResult[];
+  results: GroupedSearchResult[];
   cached?: boolean;
 }
 
@@ -31,6 +40,117 @@ export class SearchService {
 
   private getCacheKey(query: string): string {
     return `search:${this.getQueryHash(query)}`;
+  }
+
+  private findOverlap(text1: string, text2: string, minOverlap: number = 50): number {
+    // Try to find where text1 ends and text2 begins with overlap
+    // Start from the minimum overlap and work up
+    for (let overlapSize = Math.min(text1.length, text2.length); overlapSize >= minOverlap; overlapSize--) {
+      const text1End = text1.slice(-overlapSize);
+      const text2Start = text2.slice(0, overlapSize);
+      
+      if (text1End === text2Start) {
+        return overlapSize;
+      }
+    }
+    return 0;
+  }
+
+  private groupAndStitchResults(results: any[], limit: number): GroupedSearchResult[] {
+    // Group by script ID
+    const groupedByScript = new Map<number, any[]>();
+    
+    for (const result of results) {
+      if (!groupedByScript.has(result.scriptId)) {
+        groupedByScript.set(result.scriptId, []);
+      }
+      groupedByScript.get(result.scriptId)!.push(result);
+    }
+    
+    // Process each script group - now we'll create one result per script
+    const processedGroups: GroupedSearchResult[] = [];
+    
+    for (const [scriptId, chunks] of groupedByScript) {
+      // Calculate average similarity for the entire script
+      const avgSimilarity = chunks.reduce((sum, chunk) => sum + chunk.similarity, 0) / chunks.length;
+      
+      // Sort chunks by chunk index for proper ordering
+      chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
+      
+      // Find overlapping chunk sequences and stitch them
+      const sequences: any[][] = [];
+      const used = new Set<number>();
+      
+      for (let i = 0; i < chunks.length; i++) {
+        if (used.has(i)) continue;
+        
+        const currentSequence: any[] = [chunks[i]];
+        used.add(i);
+        
+        // Look for chunks that overlap with the current sequence
+        let lastChunkContent = chunks[i].content;
+        let foundOverlap = true;
+        
+        while (foundOverlap) {
+          foundOverlap = false;
+          
+          for (let j = 0; j < chunks.length; j++) {
+            if (used.has(j)) continue;
+            
+            // Check if this chunk overlaps with the end of our current sequence
+            const overlap = this.findOverlap(lastChunkContent, chunks[j].content);
+            if (overlap > 0) {
+              currentSequence.push(chunks[j]);
+              used.add(j);
+              lastChunkContent = chunks[j].content;
+              foundOverlap = true;
+              break;
+            }
+          }
+        }
+        
+        sequences.push(currentSequence);
+      }
+      
+      // Stitch all sequences together for this script
+      let fullContent = '';
+      
+      for (let seqIdx = 0; seqIdx < sequences.length; seqIdx++) {
+        const sequence = sequences[seqIdx];
+        
+        // Stitch content within each sequence by removing overlaps
+        let sequenceContent = sequence[0].content;
+        
+        for (let i = 1; i < sequence.length; i++) {
+          const overlap = this.findOverlap(sequence[i-1].content, sequence[i].content);
+          if (overlap > 0) {
+            // Remove the overlapping part from the beginning of the next chunk
+            sequenceContent += sequence[i].content.slice(overlap);
+          } else {
+            // No overlap found, just concatenate
+            sequenceContent += sequence[i].content;
+          }
+        }
+        
+        // Add sequence to full content with separator if not first sequence
+        if (seqIdx > 0) {
+          fullContent += '\n\n[...]\n\n';  // Visual separator for non-contiguous sections
+        }
+        fullContent += sequenceContent;
+      }
+      
+      processedGroups.push({
+        scriptId,
+        scriptTitle: chunks[0].scriptTitle,
+        avgSimilarity,
+        content: fullContent,
+        chunkIndices: chunks.map(chunk => chunk.chunkIndex).sort((a, b) => a - b)
+      });
+    }
+    
+    // Sort by average similarity and limit results
+    processedGroups.sort((a, b) => b.avgSimilarity - a.avgSimilarity);
+    return processedGroups.slice(0, limit);
   }
 
   async search(request: SearchRequest): Promise<SearchResponse> {
@@ -79,32 +199,32 @@ export class SearchService {
             content: scriptChunks.content,
             scriptId: scriptChunks.scriptId,
             scriptTitle: scripts.title,
+            chunkIndex: scriptChunks.chunkIndex,
             similarity: sql<number>`1 - (${scriptChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector)`,
           })
           .from(scriptChunks)
           .innerJoin(scripts, eq(scriptChunks.scriptId, scripts.id))
           .orderBy(sql`1 - (${scriptChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector) DESC`)
-          .limit(limit),
+          .limit(limit * 3), // Get more results to have better grouping
         { limit: limit.toString() }
       );
       
+      // Group results by script and stitch consecutive chunks
+      const groupedResults = this.groupAndStitchResults(results, limit);
+      
       // Get unique script IDs for cache tagging
-      const scriptIds = [...new Set(results.map(r => r.scriptId))];
+      const scriptIds = [...new Set(groupedResults.map(r => r.scriptId))];
       
       const response: SearchResponse = {
         query,
-        results: results.map(r => ({
-          content: r.content,
-          scriptTitle: r.scriptTitle,
-          similarity: r.similarity,
-          scriptId: r.scriptId,
-        })),
+        results: groupedResults,
         cached: false
       };
       
       Logger.info("Search completed", {
         query: query.substring(0, 100),
-        resultCount: results.length,
+        rawResultCount: results.length,
+        groupedResultCount: groupedResults.length,
         uniqueScripts: scriptIds.length
       });
 
@@ -120,9 +240,9 @@ export class SearchService {
       });
 
       // Record metrics
-      AppMetrics.searchPerformed(results.length, false);
+      AppMetrics.searchPerformed(groupedResults.length, false);
       Logger.performance('search.complete', startTime, {
-        resultCount: results.length,
+        resultCount: groupedResults.length,
         cached: false
       });
       

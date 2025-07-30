@@ -66,10 +66,17 @@ export function Search({ onSearch }: SearchProps) {
               <div style={styles.resultHeader}>
                 <div>
                   <h3 style={styles.resultTitle}>{result.scriptTitle}</h3>
-                  <div style={styles.badge}>
-                    <span style={styles.badgeText}>
-                      {(result.similarity * 100).toFixed(1)}% match
-                    </span>
+                  <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+                    <div style={styles.badge}>
+                      <span style={styles.badgeText}>
+                        {(result.avgSimilarity * 100).toFixed(1)}% match
+                      </span>
+                    </div>
+                    <div style={{ ...styles.badge, background: colors.gray[800], border: `1px solid ${colors.gray[700]}` }}>
+                      <span style={{ ...styles.badgeText, color: colors.gray[300] }}>
+                        {result.chunkIndices.length} chunk{result.chunkIndices.length > 1 ? 's' : ''} from script
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

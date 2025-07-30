@@ -92,7 +92,7 @@ try {
       console.log(`\nTop ${response.results.length} results${response.cached ? ' (cached)' : ''}:`);
       response.results.forEach((result, i) => {
         console.log(`\n${i + 1}. ${result.scriptTitle}`);
-        console.log(`   Similarity: ${(result.similarity * 100).toFixed(2)}%`);
+        console.log(`   Similarity: ${(result.avgSimilarity * 100).toFixed(2)}%`);
         console.log(`   Text: ${result.content.substring(0, 200)}${result.content.length > 200 ? '...' : ''}`);
       });
       break;

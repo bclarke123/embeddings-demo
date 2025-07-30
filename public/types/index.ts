@@ -1,8 +1,9 @@
 export interface SearchResult {
   content: string;
   scriptTitle: string;
-  similarity: number;
+  avgSimilarity: number;
   scriptId: number;
+  chunkIndices: number[];
 }
 
 export interface Document {
