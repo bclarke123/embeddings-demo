@@ -48,7 +48,7 @@ export class SearchService {
     for (let overlapSize = Math.min(text1.length, text2.length); overlapSize >= minOverlap; overlapSize--) {
       const text1End = text1.slice(-overlapSize);
       const text2Start = text2.slice(0, overlapSize);
-      
+
       if (text1End === text2Start) {
         return overlapSize;
       }
@@ -59,44 +59,44 @@ export class SearchService {
   private groupAndStitchResults(results: any[], limit: number): GroupedSearchResult[] {
     // Group by script ID
     const groupedByScript = new Map<number, any[]>();
-    
+
     for (const result of results) {
       if (!groupedByScript.has(result.scriptId)) {
         groupedByScript.set(result.scriptId, []);
       }
       groupedByScript.get(result.scriptId)!.push(result);
     }
-    
+
     // Process each script group - now we'll create one result per script
     const processedGroups: GroupedSearchResult[] = [];
-    
+
     for (const [scriptId, chunks] of groupedByScript) {
       // Calculate average similarity for the entire script
       const avgSimilarity = chunks.reduce((sum, chunk) => sum + chunk.similarity, 0) / chunks.length;
-      
+
       // Sort chunks by chunk index for proper ordering
       chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
-      
+
       // Find overlapping chunk sequences and stitch them
       const sequences: any[][] = [];
       const used = new Set<number>();
-      
+
       for (let i = 0; i < chunks.length; i++) {
         if (used.has(i)) continue;
-        
+
         const currentSequence: any[] = [chunks[i]];
         used.add(i);
-        
+
         // Look for chunks that overlap with the current sequence
         let lastChunkContent = chunks[i].content;
         let foundOverlap = true;
-        
+
         while (foundOverlap) {
           foundOverlap = false;
-          
+
           for (let j = 0; j < chunks.length; j++) {
             if (used.has(j)) continue;
-            
+
             // Check if this chunk overlaps with the end of our current sequence
             const overlap = this.findOverlap(lastChunkContent, chunks[j].content);
             if (overlap > 0) {
@@ -108,21 +108,21 @@ export class SearchService {
             }
           }
         }
-        
+
         sequences.push(currentSequence);
       }
-      
+
       // Stitch all sequences together for this script
       let fullContent = '';
-      
+
       for (let seqIdx = 0; seqIdx < sequences.length; seqIdx++) {
-        const sequence = sequences[seqIdx];
-        
+        const sequence = sequences[seqIdx]!;
+
         // Stitch content within each sequence by removing overlaps
         let sequenceContent = sequence[0].content;
-        
+
         for (let i = 1; i < sequence.length; i++) {
-          const overlap = this.findOverlap(sequence[i-1].content, sequence[i].content);
+          const overlap = this.findOverlap(sequence[i - 1].content, sequence[i].content);
           if (overlap > 0) {
             // Remove the overlapping part from the beginning of the next chunk
             sequenceContent += sequence[i].content.slice(overlap);
@@ -131,14 +131,14 @@ export class SearchService {
             sequenceContent += sequence[i].content;
           }
         }
-        
+
         // Add sequence to full content with separator if not first sequence
         if (seqIdx > 0) {
           fullContent += '\n\n[...]\n\n';  // Visual separator for non-contiguous sections
         }
         fullContent += sequenceContent;
       }
-      
+
       processedGroups.push({
         scriptId,
         scriptTitle: chunks[0].scriptTitle,
@@ -147,7 +147,7 @@ export class SearchService {
         chunkIndices: chunks.map(chunk => chunk.chunkIndex).sort((a, b) => a - b)
       });
     }
-    
+
     // Sort by average similarity and limit results
     processedGroups.sort((a, b) => b.avgSimilarity - a.avgSimilarity);
     return processedGroups.slice(0, limit);
@@ -157,18 +157,18 @@ export class SearchService {
     const startTime = Date.now();
     const { query, limit } = request;
     const cacheKey = this.getCacheKey(query);
-    
-    Logger.info("Starting search", { 
+
+    Logger.info("Starting search", {
       query: query.substring(0, 100), // Log first 100 chars only
-      limit 
+      limit
     });
 
     // Check cache first
     const cached = await CacheManager.get<SearchResponse>(cacheKey);
     if (cached) {
-      Logger.info("Cache hit for search", { 
+      Logger.info("Cache hit for search", {
         query: query.substring(0, 100),
-        resultCount: cached.results.length 
+        resultCount: cached.results.length
       });
       AppMetrics.searchPerformed(cached.results.length, true);
       return { ...cached, cached: true };
@@ -183,13 +183,13 @@ export class SearchService {
         () => batchEmbeddingService.generateEmbedding(query),
         { operation: 'search' }
       );
-      
+
       // Store search in history
       await db.insert(searches).values({
         query,
         queryEmbedding,
       });
-      
+
       // Perform vector similarity search with timing
       const results = await MetricsCollector.time(
         'search.vector_query',
@@ -208,19 +208,19 @@ export class SearchService {
           .limit(limit * 3), // Get more results to have better grouping
         { limit: limit.toString() }
       );
-      
+
       // Group results by script and stitch consecutive chunks
       const groupedResults = this.groupAndStitchResults(results, limit);
-      
+
       // Get unique script IDs for cache tagging
       const scriptIds = [...new Set(groupedResults.map(r => r.scriptId))];
-      
+
       const response: SearchResponse = {
         query,
         results: groupedResults,
         cached: false
       };
-      
+
       Logger.info("Search completed", {
         query: query.substring(0, 100),
         rawResultCount: results.length,
@@ -233,7 +233,7 @@ export class SearchService {
         'search',
         ...scriptIds.map(id => `script:${id}`)
       ];
-      
+
       await CacheManager.set(cacheKey, response, {
         ttl: 900, // 15 minutes
         tags: cacheTags
@@ -245,7 +245,7 @@ export class SearchService {
         resultCount: groupedResults.length,
         cached: false
       });
-      
+
       return response;
     } catch (error) {
       Logger.error("Search failed", error as Error, {
